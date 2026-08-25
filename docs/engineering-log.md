@@ -28,3 +28,29 @@ The application renders three circular bodies with different radii, initial velo
 ### Next step
 
 Implement a fixed-timestep simulation so physics behaviour does not depend on rendering frame rate.
+
+## 2026-08-24 — Add a fixed physics timestep
+
+### Objective
+
+Make the numerical simulation independent of rendering speed.
+
+### Problem
+
+The original loop used the duration of each rendered frame as the physics step. That duration varies with frame rate and system load, which can change numerical integration and collision behaviour between runs.
+
+### Decision
+
+- Advance physics in constant `1/120` second steps.
+- Accumulate real frame time and run as many fixed physics steps as needed.
+- Cap an unusually long frame at `0.25` seconds to avoid an unbounded simulation backlog after the application is paused.
+- Continue rendering once per outer loop, independently of the number of physics steps performed.
+
+### Verification
+
+- The project configures and compiles with all warning options enabled.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually verify motion and reset behaviour, then begin circle-circle collision detection with automated tests for its geometric edge cases.

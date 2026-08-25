@@ -10,7 +10,8 @@ constexpr float WINDOW_HEIGHT = 600.f;
 constexpr float GRAVITY = 500.f;
 constexpr float FLOOR_FRICTION = 0.98f;
 constexpr float MINIMUM_BOUNCE_SPEED = 15.f;
-constexpr float MAX_FRAME_TIME = 0.033f;
+constexpr float FIXED_TIME_STEP = 1.f / 120.f;
+constexpr float MAX_FRAME_TIME = 0.25f;
 }
 
 struct PhysicsBody
@@ -130,6 +131,7 @@ int main()
     );
 
     sf::Clock clock;
+    float accumulator = 0.f;
 
     while (window.isOpen())
     {
@@ -171,23 +173,33 @@ int main()
             }
         }
 
-        float dt = clock.restart().asSeconds();
+        float frameTime = clock.restart().asSeconds();
 
-        // Prevent huge physics jumps if the app pauses briefly
-        if (dt > MAX_FRAME_TIME)
+        // Avoid trying to simulate an unbounded backlog after a long pause.
+        if (frameTime > MAX_FRAME_TIME)
         {
-            dt = MAX_FRAME_TIME;
+            frameTime = MAX_FRAME_TIME;
+        }
+
+        accumulator += frameTime;
+
+        while (accumulator >= FIXED_TIME_STEP)
+        {
+            for (auto& body : bodies)
+            {
+                body.update(FIXED_TIME_STEP);
+
+                body.handleWindowCollisions(
+                    windowWidth,
+                    windowHeight
+                );
+            }
+
+            accumulator -= FIXED_TIME_STEP;
         }
 
         for (auto& body : bodies)
         {
-            body.update(dt);
-
-            body.handleWindowCollisions(
-                windowWidth,
-                windowHeight
-            );
-
             body.syncShape();
         }
 

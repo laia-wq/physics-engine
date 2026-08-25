@@ -8,6 +8,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 ## Current features
 
 - Gravity and velocity-based motion
+- Frame-rate-independent physics at 120 simulation steps per second
 - Circular bodies with configurable radius and restitution
 - Collision response against the window boundaries
 - Simple floor friction and resting-bounce suppression
@@ -30,7 +31,6 @@ cmake --build build
 
 ## Roadmap
 
-- Frame-rate-independent fixed-timestep simulation
 - Circle-circle collision detection and impulse response
 - Rotating rectangular rigid bodies
 - Stable friction and resting contacts
