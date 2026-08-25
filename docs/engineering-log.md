@@ -54,3 +54,38 @@ The original loop used the duration of each rendered frame as the physics step. 
 ### Next step
 
 Visually verify motion and reset behaviour, then begin circle-circle collision detection with automated tests for its geometric edge cases.
+
+## 2026-08-24 — Detect circle-circle collisions
+
+### Objective
+
+Detect when two circular bodies touch or overlap before implementing collision response.
+
+### Method
+
+For two circle centres, subtract their positions to obtain the displacement vector. A collision exists when the squared displacement length is no greater than the square of the combined radii:
+
+```text
+dx² + dy² <= (radiusA + radiusB)²
+```
+
+Comparing squared values avoids an unnecessary square-root calculation.
+
+### Design decisions
+
+- Put reusable collision logic in a small `physics-core` library rather than tying it to rendering code.
+- Count exactly touching circles as colliding.
+- Test geometry separately from the interactive application.
+- Highlight detected circles in red, but deliberately leave their velocities unchanged until the collision-response milestone.
+
+### Edge cases tested
+
+- Clearly separated circles
+- Exactly touching circles
+- Overlapping circles
+- Circles sharing the same centre
+- Diagonal separation
+
+### Next step
+
+Calculate a collision normal, correct penetration, and apply an impulse so colliding circles bounce according to mass and restitution.

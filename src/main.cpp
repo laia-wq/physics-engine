@@ -1,5 +1,7 @@
 #include <SFML/Graphics.hpp>
 
+#include "physics/Collision.hpp"
+
 #include <cmath>
 #include <vector>
 
@@ -91,6 +93,11 @@ struct PhysicsBody
     void syncShape()
     {
         shape.setPosition(position);
+    }
+
+    sf::Vector2f center() const
+    {
+        return position + sf::Vector2f(radius, radius);
     }
 };
 
@@ -200,7 +207,25 @@ int main()
 
         for (auto& body : bodies)
         {
+            body.shape.setFillColor(sf::Color::White);
             body.syncShape();
+        }
+
+        for (std::size_t first = 0; first < bodies.size(); ++first)
+        {
+            for (std::size_t second = first + 1; second < bodies.size(); ++second)
+            {
+                if (physics::circlesOverlap(
+                        bodies[first].center(),
+                        bodies[first].radius,
+                        bodies[second].center(),
+                        bodies[second].radius
+                    ))
+                {
+                    bodies[first].shape.setFillColor(sf::Color::Red);
+                    bodies[second].shape.setFillColor(sf::Color::Red);
+                }
+            }
         }
 
         window.clear();

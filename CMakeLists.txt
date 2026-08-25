@@ -8,17 +8,35 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
-add_executable(physics-engine src/main.cpp)
+function(enable_project_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endfunction()
 
-if(MSVC)
-    target_compile_options(physics-engine PRIVATE /W4)
-else()
-    target_compile_options(physics-engine PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+add_library(physics-core src/Collision.cpp)
+target_include_directories(physics-core PUBLIC include)
+target_link_libraries(physics-core PUBLIC SFML::System)
+enable_project_warnings(physics-core)
+
+add_executable(physics-engine src/main.cpp)
+enable_project_warnings(physics-engine)
 
 target_link_libraries(
     physics-engine
+    physics-core
     SFML::Graphics
     SFML::Window
     SFML::System
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(collision-tests tests/CollisionTests.cpp)
+    target_link_libraries(collision-tests PRIVATE physics-core)
+    enable_project_warnings(collision-tests)
+    add_test(NAME circle-collision-detection COMMAND collision-tests)
+endif()
