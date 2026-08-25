@@ -1,9 +1,17 @@
 #include <SFML/Graphics.hpp>
-#include <vector>
-#include <cmath>
 
-#include <SFML/Graphics.hpp>
+#include <cmath>
 #include <vector>
+
+namespace
+{
+constexpr float WINDOW_WIDTH = 800.f;
+constexpr float WINDOW_HEIGHT = 600.f;
+constexpr float GRAVITY = 500.f;
+constexpr float FLOOR_FRICTION = 0.98f;
+constexpr float MINIMUM_BOUNCE_SPEED = 15.f;
+constexpr float MAX_FRAME_TIME = 0.033f;
+}
 
 struct PhysicsBody
 {
@@ -25,7 +33,7 @@ struct PhysicsBody
         : shape(r),
           position(startPosition),
           velocity(startVelocity),
-          acceleration(0.f, 500.f),
+          acceleration(0.f, GRAVITY),
           radius(r),
           restitution(bounce)
     {
@@ -69,10 +77,10 @@ struct PhysicsBody
             velocity.y = -velocity.y * restitution;
 
             // Basic friction
-            velocity.x *= 0.98f;
+            velocity.x *= FLOOR_FRICTION;
 
             // Stop tiny bouncing
-            if (std::abs(velocity.y) < 15.f)
+            if (std::abs(velocity.y) < MINIMUM_BOUNCE_SPEED)
             {
                 velocity.y = 0.f;
             }
@@ -87,8 +95,8 @@ struct PhysicsBody
 
 int main()
 {
-    const float windowWidth = 800.f;
-    const float windowHeight = 600.f;
+    const float windowWidth = WINDOW_WIDTH;
+    const float windowHeight = WINDOW_HEIGHT;
 
     sf::RenderWindow window(
         sf::VideoMode({
@@ -166,9 +174,9 @@ int main()
         float dt = clock.restart().asSeconds();
 
         // Prevent huge physics jumps if the app pauses briefly
-        if (dt > 0.033f)
+        if (dt > MAX_FRAME_TIME)
         {
-            dt = 0.033f;
+            dt = MAX_FRAME_TIME;
         }
 
         for (auto& body : bodies)

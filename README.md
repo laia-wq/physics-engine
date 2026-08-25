@@ -1,0 +1,48 @@
+# Physics Engine
+
+A 2D physics engine built from scratch in C++17 and visualized with SFML 3.
+
+The project is an engineering sandbox for learning how motion, collision detection,
+collision response, spatial partitioning, and numerical simulation work beneath a game engine.
+
+## Current features
+
+- Gravity and velocity-based motion
+- Circular bodies with configurable radius and restitution
+- Collision response against the window boundaries
+- Simple floor friction and resting-bounce suppression
+- Three-body demonstration scene
+- Press `R` to reset the simulation
+
+## Requirements
+
+- A C++17-compatible compiler
+- CMake 3.16 or newer
+- SFML 3
+
+## Build and run
+
+```sh
+cmake -S . -B build
+cmake --build build
+./build/physics-engine
+```
+
+## Roadmap
+
+- Frame-rate-independent fixed-timestep simulation
+- Circle-circle collision detection and impulse response
+- Rotating rectangular rigid bodies
+- Stable friction and resting contacts
+- Broad-phase collision detection with spatial partitioning
+- Automated tests and performance benchmarks
+- Debug visualization for contacts, normals, and velocities
+
+## Engineering notes
+
+Design decisions and experimental results are recorded in
+[`docs/engineering-log.md`](docs/engineering-log.md).
+
+## Status
+
+This project is under active development. The current boundary-collision demo is the baseline for the full physics engine.
