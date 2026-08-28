@@ -17,6 +17,10 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Collision response against the window boundaries
 - Simple floor friction and resting-bounce suppression
 - Three-body demonstration scene
+- Click empty space to spawn a circle
+- Drag and release circles to throw them
+- Press `Space` to pause or resume
+- Press `N` to advance one physics step while paused
 - Press `R` to reset the simulation
 
 ## Requirements

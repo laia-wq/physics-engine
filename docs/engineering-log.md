@@ -153,3 +153,35 @@ The engine can now evolve independently of its visual frontend. This prepares it
 ### Next step
 
 Add mouse interaction so users can spawn, select, drag, and throw circles while preserving the separation between input, rendering, and physics.
+
+## 2026-08-28 — Add direct interaction controls
+
+### Objective
+
+Turn the passive demonstration into the first version of an interactive physics laboratory.
+
+### Controls
+
+- Click empty space to spawn a circle.
+- Hold the left mouse button on a circle to drag it.
+- Release a dragged circle to throw it using the measured mouse velocity.
+- Press `Space` to pause or resume.
+- Press `N` while paused to advance exactly one fixed physics step.
+- Press `R` to restore the original scene.
+
+### Design decisions
+
+- Input and selection state remain in the SFML application rather than `physics-core`.
+- A dragged body temporarily has zero inverse mass, making it act like a user-controlled kinematic object during collisions.
+- Throw velocity is capped to prevent noisy mouse timing from creating extreme impulses.
+- The selected body is gold, detected contacts are red, and ordinary bodies are white.
+
+### Verification
+
+- The physics core and graphical application compile with warnings enabled.
+- Both automated test suites continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually test all controls, then add an on-screen status and parameter panel for gravity, spawn radius, restitution, body count, and simulation performance.
