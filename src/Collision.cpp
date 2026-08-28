@@ -88,4 +88,20 @@ bool resolveCircleCollision(
 
     return true;
 }
+
+bool resolveCircleCollision(CircleBody& bodyA, CircleBody& bodyB)
+{
+    return resolveCircleCollision(
+        bodyA.position,
+        bodyA.velocity,
+        bodyA.radius,
+        bodyA.inverseMass,
+        bodyA.restitution,
+        bodyB.position,
+        bodyB.velocity,
+        bodyB.radius,
+        bodyB.inverseMass,
+        bodyB.restitution
+    );
+}
 }

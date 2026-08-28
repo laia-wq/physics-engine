@@ -2,7 +2,6 @@
 
 #include "physics/Collision.hpp"
 
-#include <cmath>
 #include <vector>
 
 namespace
@@ -16,90 +15,32 @@ constexpr float FIXED_TIME_STEP = 1.f / 120.f;
 constexpr float MAX_FRAME_TIME = 0.25f;
 }
 
-struct PhysicsBody
+struct CircleView
 {
+    physics::CircleBody body;
     sf::CircleShape shape;
 
-    sf::Vector2f position;
-    sf::Vector2f velocity;
-    sf::Vector2f acceleration;
-
-    float radius;
-    float inverseMass;
-    float restitution;
-
-    PhysicsBody(
-        float r,
-        sf::Vector2f startPosition,
-        sf::Vector2f startVelocity,
-        float bounce
+    CircleView(
+        float radius,
+        sf::Vector2f position,
+        sf::Vector2f velocity,
+        float restitution
     )
-        : shape(r),
-          position(startPosition),
-          velocity(startVelocity),
-          acceleration(0.f, GRAVITY),
-          radius(r),
-          inverseMass(1.f / (r * r)),
-          restitution(bounce)
+        : body(
+              radius,
+              position,
+              velocity,
+              sf::Vector2f(0.f, GRAVITY),
+              restitution
+          ),
+          shape(radius)
     {
-        shape.setPosition(position);
+        sync();
     }
 
-    void update(float dt)
+    void sync()
     {
-        velocity += acceleration * dt;
-        position += velocity * dt;
-    }
-
-    void handleWindowCollisions(float width, float height)
-    {
-        // Left wall
-        if (position.x < 0.f)
-        {
-            position.x = 0.f;
-            velocity.x = -velocity.x * restitution;
-        }
-
-        // Right wall
-        if (position.x + radius * 2.f > width)
-        {
-            position.x = width - radius * 2.f;
-            velocity.x = -velocity.x * restitution;
-        }
-
-        // Ceiling
-        if (position.y < 0.f)
-        {
-            position.y = 0.f;
-            velocity.y = -velocity.y * restitution;
-        }
-
-        // Floor
-        if (position.y + radius * 2.f > height)
-        {
-            position.y = height - radius * 2.f;
-
-            velocity.y = -velocity.y * restitution;
-
-            // Basic friction
-            velocity.x *= FLOOR_FRICTION;
-
-            // Stop tiny bouncing
-            if (std::abs(velocity.y) < MINIMUM_BOUNCE_SPEED)
-            {
-                velocity.y = 0.f;
-            }
-        }
-    }
-
-    void syncShape()
-    {
-        shape.setPosition(position);
-    }
-
-    sf::Vector2f center() const
-    {
-        return position + sf::Vector2f(radius, radius);
+        shape.setPosition(body.position);
     }
 };
 
@@ -116,7 +57,7 @@ int main()
         "My Physics Engine"
     );
 
-    std::vector<PhysicsBody> bodies;
+    std::vector<CircleView> bodies;
 
     bodies.emplace_back(
         25.f,
@@ -194,13 +135,15 @@ int main()
 
         while (accumulator >= FIXED_TIME_STEP)
         {
-            for (auto& body : bodies)
+            for (auto& view : bodies)
             {
-                body.update(FIXED_TIME_STEP);
+                view.body.integrate(FIXED_TIME_STEP);
 
-                body.handleWindowCollisions(
+                view.body.resolveBounds(
                     windowWidth,
-                    windowHeight
+                    windowHeight,
+                    FLOOR_FRICTION,
+                    MINIMUM_BOUNCE_SPEED
                 );
             }
 
@@ -209,16 +152,8 @@ int main()
                 for (std::size_t second = first + 1; second < bodies.size(); ++second)
                 {
                     physics::resolveCircleCollision(
-                        bodies[first].position,
-                        bodies[first].velocity,
-                        bodies[first].radius,
-                        bodies[first].inverseMass,
-                        bodies[first].restitution,
-                        bodies[second].position,
-                        bodies[second].velocity,
-                        bodies[second].radius,
-                        bodies[second].inverseMass,
-                        bodies[second].restitution
+                        bodies[first].body,
+                        bodies[second].body
                     );
                 }
             }
@@ -226,10 +161,10 @@ int main()
             accumulator -= FIXED_TIME_STEP;
         }
 
-        for (auto& body : bodies)
+        for (auto& view : bodies)
         {
-            body.shape.setFillColor(sf::Color::White);
-            body.syncShape();
+            view.shape.setFillColor(sf::Color::White);
+            view.sync();
         }
 
         for (std::size_t first = 0; first < bodies.size(); ++first)
@@ -237,10 +172,10 @@ int main()
             for (std::size_t second = first + 1; second < bodies.size(); ++second)
             {
                 if (physics::circlesOverlap(
-                        bodies[first].center(),
-                        bodies[first].radius,
-                        bodies[second].center(),
-                        bodies[second].radius
+                        bodies[first].body.center(),
+                        bodies[first].body.radius,
+                        bodies[second].body.center(),
+                        bodies[second].body.radius
                     ))
                 {
                     bodies[first].shape.setFillColor(sf::Color::Red);
@@ -251,9 +186,9 @@ int main()
 
         window.clear();
 
-        for (const auto& body : bodies)
+        for (const auto& view : bodies)
         {
-            window.draw(body.shape);
+            window.draw(view.shape);
         }
 
         window.display();

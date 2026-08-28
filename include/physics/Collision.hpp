@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
+#include "physics/CircleBody.hpp"
 
 namespace physics
 {
@@ -23,4 +23,6 @@ bool resolveCircleCollision(
     float inverseMassB,
     float restitutionB
 );
+
+bool resolveCircleCollision(CircleBody& bodyA, CircleBody& bodyB);
 }

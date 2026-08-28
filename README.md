@@ -11,6 +11,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Frame-rate-independent physics at 120 simulation steps per second
 - Circle-circle overlap detection with collision highlighting
 - Mass-aware impulse response and penetration correction
+- Physics model separated from SFML rendering
+- Automated tests for body dynamics and boundary response
 - Circular bodies with configurable radius and restitution
 - Collision response against the window boundaries
 - Simple floor friction and resting-bounce suppression
@@ -38,6 +40,10 @@ cmake --build build
 - Broad-phase collision detection with spatial partitioning
 - Automated tests and performance benchmarks
 - Debug visualization for contacts, normals, and velocities
+
+## Architecture
+
+The reusable `physics-core` library owns body state, integration, boundary response, and collision mathematics. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation logic testable without opening a window.
 
 ## Engineering notes
 

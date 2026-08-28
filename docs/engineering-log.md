@@ -122,3 +122,34 @@ Discrete simulation steps can leave circles slightly embedded. The engine moves 
 ### Next step
 
 Visually verify bouncing, then separate the body model from rendering so future shapes and solvers can reuse it.
+
+## 2026-08-28 — Separate physics from rendering
+
+### Objective
+
+Remove SFML drawing objects from the reusable physics model.
+
+### Previous coupling
+
+The original `PhysicsBody` stored motion, collision properties, and an `sf::CircleShape` together. That made the simulation dependent on a graphical window and would complicate testing or adding another renderer.
+
+### New design
+
+- `physics::CircleBody` owns position, velocity, acceleration, radius, inverse mass, restitution, integration, and boundary response.
+- `CircleView` owns the SFML shape and synchronizes it from a `CircleBody`.
+- Collision response accepts complete `CircleBody` objects through a concise overload.
+- The `physics-core` library compiles independently from SFML Graphics and Window.
+
+### Verification
+
+- Added tests for semi-implicit integration, circle centres, wall response, floor friction, and bounce suppression.
+- Both the body-dynamics and collision test suites pass.
+- The full graphical application compiles with warnings enabled.
+
+### Why this matters
+
+The engine can now evolve independently of its visual frontend. This prepares it for rectangles, interactive tools, headless benchmarks, and a future browser renderer.
+
+### Next step
+
+Add mouse interaction so users can spawn, select, drag, and throw circles while preserving the separation between input, rendering, and physics.
