@@ -1,11 +1,17 @@
 #include "physics/Collision.hpp"
 
+#include <cmath>
 #include <iostream>
 #include <string_view>
 
 namespace
 {
 int failures = 0;
+
+bool nearlyEqual(float first, float second, float tolerance = 0.001f)
+{
+    return std::abs(first - second) <= tolerance;
+}
 
 void expect(bool condition, std::string_view testName)
 {
@@ -39,6 +45,52 @@ int main()
         !physics::circlesOverlap({0.f, 0.f}, 1.f, {1.5f, 1.5f}, 1.f),
         "diagonally separated circles do not overlap"
     );
+
+    {
+        sf::Vector2f positionA(0.f, 0.f);
+        sf::Vector2f positionB(1.5f, 0.f);
+        sf::Vector2f velocityA(1.f, 0.f);
+        sf::Vector2f velocityB(-1.f, 0.f);
+
+        const bool collided = physics::resolveCircleCollision(
+            positionA, velocityA, 1.f, 1.f, 1.f,
+            positionB, velocityB, 1.f, 1.f, 1.f
+        );
+
+        expect(collided, "overlapping circles are resolved");
+        expect(nearlyEqual(positionB.x - positionA.x, 2.f),
+               "penetration correction separates equal circles");
+        expect(nearlyEqual(velocityA.x, -1.f) && nearlyEqual(velocityB.x, 1.f),
+               "equal elastic circles exchange head-on velocities");
+    }
+
+    {
+        sf::Vector2f positionA(0.f, 0.f);
+        sf::Vector2f positionB(2.f, 0.f);
+        sf::Vector2f velocityA(-1.f, 0.f);
+        sf::Vector2f velocityB(1.f, 0.f);
+
+        physics::resolveCircleCollision(
+            positionA, velocityA, 1.f, 1.f, 0.5f,
+            positionB, velocityB, 1.f, 1.f, 0.5f
+        );
+
+        expect(nearlyEqual(velocityA.x, -1.f) && nearlyEqual(velocityB.x, 1.f),
+               "separating circles receive no extra impulse");
+    }
+
+    {
+        sf::Vector2f positionA(0.f, 0.f);
+        sf::Vector2f positionB(4.f, 0.f);
+        sf::Vector2f velocityA(1.f, 0.f);
+        sf::Vector2f velocityB(-1.f, 0.f);
+
+        expect(!physics::resolveCircleCollision(
+                   positionA, velocityA, 1.f, 1.f, 1.f,
+                   positionB, velocityB, 1.f, 1.f, 1.f
+               ),
+               "separated circles are not resolved");
+    }
 
     if (failures == 0)
     {

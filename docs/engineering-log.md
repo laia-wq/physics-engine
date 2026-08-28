@@ -89,3 +89,36 @@ Comparing squared values avoids an unnecessary square-root calculation.
 ### Next step
 
 Calculate a collision normal, correct penetration, and apply an impulse so colliding circles bounce according to mass and restitution.
+
+## 2026-08-27 — Resolve circle-circle collisions
+
+### Objective
+
+Make colliding circles separate and bounce instead of passing through each other.
+
+### Physics model
+
+The engine calculates a collision normal from one centre to the other. It projects relative velocity onto that normal, then applies an equal-and-opposite impulse scaled by inverse mass and restitution.
+
+Larger circles use greater mass because mass is proportional to radius squared. The common factor π is omitted because it cancels when only relative masses matter.
+
+### Penetration correction
+
+Discrete simulation steps can leave circles slightly embedded. The engine moves both bodies apart along the collision normal, distributing the correction according to inverse mass.
+
+### Important edge cases
+
+- Separated circles receive no response.
+- Touching circles moving apart receive no extra impulse.
+- Equal elastic circles exchange velocities in a head-on collision.
+- Coincident centres use a deterministic fallback normal instead of dividing by zero.
+
+### Verification
+
+- Collision detection and response tests pass through CTest.
+- The project builds with all warnings enabled.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually verify bouncing, then separate the body model from rendering so future shapes and solvers can reuse it.

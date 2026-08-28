@@ -10,6 +10,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Gravity and velocity-based motion
 - Frame-rate-independent physics at 120 simulation steps per second
 - Circle-circle overlap detection with collision highlighting
+- Mass-aware impulse response and penetration correction
 - Circular bodies with configurable radius and restitution
 - Collision response against the window boundaries
 - Simple floor friction and resting-bounce suppression
@@ -32,7 +33,6 @@ cmake --build build
 
 ## Roadmap
 
-- Impulse-based circle-circle collision response
 - Rotating rectangular rigid bodies
 - Stable friction and resting contacts
 - Broad-phase collision detection with spatial partitioning

@@ -25,6 +25,7 @@ struct PhysicsBody
     sf::Vector2f acceleration;
 
     float radius;
+    float inverseMass;
     float restitution;
 
     PhysicsBody(
@@ -38,6 +39,7 @@ struct PhysicsBody
           velocity(startVelocity),
           acceleration(0.f, GRAVITY),
           radius(r),
+          inverseMass(1.f / (r * r)),
           restitution(bounce)
     {
         shape.setPosition(position);
@@ -200,6 +202,25 @@ int main()
                     windowWidth,
                     windowHeight
                 );
+            }
+
+            for (std::size_t first = 0; first < bodies.size(); ++first)
+            {
+                for (std::size_t second = first + 1; second < bodies.size(); ++second)
+                {
+                    physics::resolveCircleCollision(
+                        bodies[first].position,
+                        bodies[first].velocity,
+                        bodies[first].radius,
+                        bodies[first].inverseMass,
+                        bodies[first].restitution,
+                        bodies[second].position,
+                        bodies[second].velocity,
+                        bodies[second].radius,
+                        bodies[second].inverseMass,
+                        bodies[second].restitution
+                    );
+                }
             }
 
             accumulator -= FIXED_TIME_STEP;
