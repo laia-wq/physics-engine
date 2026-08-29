@@ -248,3 +248,34 @@ Visually verify the overlays, then measure the current all-pairs collision algor
 ### Visual verification correction
 
 The first implementation reconstructed contacts after collision resolution. Because penetration correction had already separated the bodies, brief impacts could disappear before rendering. Contact points and normals are now captured inside the simulation step immediately before response, then retained until the frame is drawn.
+
+## 2026-08-29 — Establish an all-pairs performance baseline
+
+### Objective
+
+Measure the current collision search before replacing it with a more advanced algorithm.
+
+### Instrumentation
+
+- Count every candidate body pair tested during one physics step.
+- Count how many of those candidates are actual contacts.
+- Measure the duration of a complete physics step in milliseconds.
+- Provide repeatable 100-body and 300-body scenes from the control panel.
+
+### What the baseline demonstrates
+
+The current nested-loop search compares every body with every body after it. This avoids duplicate checks, but the amount of work still grows rapidly: 100 bodies require 4,950 pair checks per step, while 300 require 44,850. Most pairs are far apart, so most detailed collision checks are wasted work.
+
+### Design decision
+
+Keep this baseline available in the interface. After spatial partitioning is implemented, the same scenes and measurements will provide a direct before-and-after comparison rather than relying on an unsupported performance claim.
+
+### Verification
+
+- The application compiles with warnings enabled.
+- Both automated physics test suites continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Implement a uniform spatial grid that sends only nearby bodies to narrow-phase collision detection, then compare its candidate counts against this baseline.

@@ -26,6 +26,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
   spawn radius, restitution, and floor friction
 - Panel buttons to pause, single-step, reset, or clear the simulation
 - Optional debug drawing for body velocities, contact points, and collision normals
+- Live collision-search measurements and reproducible 100- and 300-body stress scenes
 
 ## Requirements
 

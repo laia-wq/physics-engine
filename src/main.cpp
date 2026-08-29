@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <optional>
 #include <vector>
@@ -160,6 +161,29 @@ int main()
 
     resetScene();
 
+    const auto loadStressScene = [&bodies](std::size_t bodyCount)
+    {
+        bodies.clear();
+        constexpr float radius = 5.f;
+        constexpr float spacing = 15.f;
+        constexpr std::size_t columns = 50;
+
+        for (std::size_t index = 0; index < bodyCount; ++index)
+        {
+            const float x = 20.f +
+                static_cast<float>(index % columns) * spacing;
+            const float y = 40.f +
+                static_cast<float>(index / columns) * spacing;
+            const float horizontalVelocity = index % 2 == 0 ? 35.f : -35.f;
+            bodies.emplace_back(
+                radius,
+                sf::Vector2f(x, y),
+                sf::Vector2f(horizontalVelocity, 0.f),
+                0.65f
+            );
+        }
+    };
+
     sf::Clock clock;
     float accumulator = 0.f;
     bool paused = false;
@@ -178,9 +202,16 @@ int main()
     bool showContacts = false;
     bool showCollisionNormals = false;
     std::vector<DebugContact> debugContacts;
+    std::size_t candidatePairChecks = 0;
+    std::size_t actualCollisions = 0;
+    double physicsStepMilliseconds = 0.0;
 
     const auto simulateStep = [&]()
     {
+        const auto stepStart = std::chrono::steady_clock::now();
+        candidatePairChecks = 0;
+        actualCollisions = 0;
+
         for (std::size_t index = 0; index < bodies.size(); ++index)
         {
             if (selectedBody && index == *selectedBody)
@@ -202,6 +233,7 @@ int main()
         {
             for (std::size_t second = first + 1; second < bodies.size(); ++second)
             {
+                ++candidatePairChecks;
                 const sf::Vector2f firstCenter =
                     bodies[first].body.center();
                 const sf::Vector2f secondCenter =
@@ -214,6 +246,7 @@ int main()
 
                 if (distanceSquared <= combinedRadius * combinedRadius)
                 {
+                    ++actualCollisions;
                     const sf::Vector2f normal = distanceSquared > 0.00000001f
                         ? difference / std::sqrt(distanceSquared)
                         : sf::Vector2f(1.f, 0.f);
@@ -229,6 +262,11 @@ int main()
                 );
             }
         }
+
+        const auto stepEnd = std::chrono::steady_clock::now();
+        physicsStepMilliseconds =
+            std::chrono::duration<double, std::milli>(stepEnd - stepStart)
+                .count();
     };
 
     while (window.isOpen())
@@ -353,6 +391,9 @@ int main()
         ImGui::Text("Bodies: %zu", bodies.size());
         ImGui::Text("Render rate: %.0f FPS", framesPerSecond);
         ImGui::Text("Physics rate: 120 Hz");
+        ImGui::Text("Pair checks: %zu", candidatePairChecks);
+        ImGui::Text("Actual contacts: %zu", actualCollisions);
+        ImGui::Text("Physics step: %.3f ms", physicsStepMilliseconds);
         ImGui::Separator();
         ImGui::SliderFloat("Gravity", &gravity, -1000.f, 1500.f, "%.0f px/s^2");
         ImGui::SliderFloat("Spawn radius", &spawnRadius, 6.f, 60.f, "%.0f px");
@@ -392,6 +433,21 @@ int main()
         }
         ImGui::TextDisabled("Click: spawn  Drag: throw");
         ImGui::TextDisabled("Space: pause  N: step  R: reset");
+        ImGui::Separator();
+        ImGui::Text("Performance scenes");
+        if (ImGui::Button("Load 100 bodies"))
+        {
+            loadStressScene(100);
+            selectedBody.reset();
+            accumulator = 0.f;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Load 300 bodies"))
+        {
+            loadStressScene(300);
+            selectedBody.reset();
+            accumulator = 0.f;
+        }
         ImGui::End();
 
         if (selectedBody && *selectedBody < bodies.size())
