@@ -39,6 +39,22 @@ int main()
                nearlyEqual(movingBody.center().y, 4.5f),
            "centre accounts for the circle radius");
 
+    physics::CircleBody forcedBody(
+        2.f, {0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}, 0.5f
+    );
+    forcedBody.applyForce({4.f, 0.f});
+    forcedBody.applyForce({4.f, 0.f});
+    forcedBody.integrate(0.5f);
+
+    expect(nearlyEqual(forcedBody.velocity.x, 1.f),
+           "multiple forces accumulate and account for body mass");
+    expect(nearlyEqual(forcedBody.accumulatedForce.x, 0.f),
+           "forces clear after each integration step");
+
+    forcedBody.integrate(0.5f);
+    expect(nearlyEqual(forcedBody.velocity.x, 1.f),
+           "a cleared force is not applied again on the next step");
+
     physics::CircleBody wallBody(
         1.f, {9.f, 2.f}, {4.f, 0.f}, {0.f, 0.f}, 0.5f
     );

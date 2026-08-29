@@ -196,6 +196,7 @@ int main()
     sf::Vector2f lastMousePosition;
     sf::Vector2f throwVelocity;
     float gravity = GRAVITY;
+    float windForce = 0.f;
     float floorFriction = 0.98f;
     float spawnRadius = 22.f;
     float spawnRestitution = 0.75f;
@@ -227,6 +228,7 @@ int main()
             }
 
             bodies[index].body.acceleration = sf::Vector2f(0.f, gravity);
+            bodies[index].body.applyForce(sf::Vector2f(windForce, 0.f));
             bodies[index].body.integrate(FIXED_TIME_STEP);
             bodies[index].body.resolveBounds(
                 windowWidth,
@@ -436,6 +438,7 @@ int main()
         ImGui::EndDisabled();
         ImGui::Separator();
         ImGui::SliderFloat("Gravity", &gravity, -1000.f, 1500.f, "%.0f px/s^2");
+        ImGui::SliderFloat("Wind force", &windForce, -5000.f, 5000.f, "%.0f");
         ImGui::SliderFloat("Spawn radius", &spawnRadius, 6.f, 60.f, "%.0f px");
         ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
         ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");

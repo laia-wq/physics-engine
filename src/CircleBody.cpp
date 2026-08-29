@@ -14,6 +14,7 @@ CircleBody::CircleBody(
     : position(startPosition),
       velocity(startVelocity),
       acceleration(bodyAcceleration),
+      accumulatedForce(0.f, 0.f),
       radius(bodyRadius),
       inverseMass(bodyRadius > 0.f ? 1.f / (bodyRadius * bodyRadius) : 0.f),
       restitution(bodyRestitution)
@@ -22,8 +23,20 @@ CircleBody::CircleBody(
 
 void CircleBody::integrate(float timeStep)
 {
-    velocity += acceleration * timeStep;
+    const sf::Vector2f forceAcceleration = accumulatedForce * inverseMass;
+    velocity += (acceleration + forceAcceleration) * timeStep;
     position += velocity * timeStep;
+    clearForces();
+}
+
+void CircleBody::applyForce(sf::Vector2f force)
+{
+    accumulatedForce += force;
+}
+
+void CircleBody::clearForces()
+{
+    accumulatedForce = sf::Vector2f(0.f, 0.f);
 }
 
 void CircleBody::resolveBounds(

@@ -335,3 +335,33 @@ ImGui's local window-layout file is disabled and ignored because panel positions
 ### Next step
 
 Commit the verified grid milestone, then add force accumulation so users can apply forces without directly rewriting body acceleration.
+
+## 2026-08-29 — Add force accumulation
+
+### Objective
+
+Allow multiple independent systems to apply forces to a body during the same physics step.
+
+### Previous limitation
+
+Each body had one acceleration value. A future spring, wind field, or attraction system would have to rewrite that value and could accidentally erase another effect.
+
+### New model
+
+- Forces are added to a per-body accumulator during a physics step.
+- The accumulated force is converted to acceleration using inverse mass.
+- Base acceleration, such as uniform gravity, is combined with force-based acceleration.
+- The accumulator is cleared after integration so temporary forces must be deliberately applied each step.
+
+The laboratory includes a horizontal wind-force control. Because circle mass is proportional to radius squared, the same force produces greater acceleration in smaller circles than in larger circles.
+
+### Verification
+
+- Tests confirm that multiple forces combine.
+- Tests confirm that mass affects the resulting velocity change.
+- Tests confirm that forces clear after integration instead of leaking into later steps.
+- All existing collision, body, and broad-phase tests continue to pass.
+
+### Next step
+
+Add object selection and an inspector that displays the selected body's mass, position, and velocity and allows it to be deleted.

@@ -9,6 +9,7 @@ struct CircleBody
     sf::Vector2f position;
     sf::Vector2f velocity;
     sf::Vector2f acceleration;
+    sf::Vector2f accumulatedForce;
 
     float radius;
     float inverseMass;
@@ -23,6 +24,8 @@ struct CircleBody
     );
 
     void integrate(float timeStep);
+    void applyForce(sf::Vector2f force);
+    void clearForces();
     void resolveBounds(
         float width,
         float height,

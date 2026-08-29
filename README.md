@@ -29,6 +29,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Live collision-search measurements and reproducible 100- and 300-body stress scenes
 - Optional uniform-grid broad phase that rejects distant collision pairs
 - Visible grid overlay and live candidate-reduction percentage
+- Per-body force accumulation with an interactive wind-force demonstration
 
 ## Requirements
 
@@ -54,7 +55,7 @@ cmake --build build
 - Stable friction and resting contacts
 - Automated performance benchmark executable
 - Automated tests and performance benchmarks
-- Force accumulation and multiple simultaneous contact solving
+- Multiple simultaneous contact solving
 
 ## Architecture
 
