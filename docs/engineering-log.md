@@ -365,3 +365,40 @@ The laboratory includes a horizontal wind-force control. Because circle mass is 
 ### Next step
 
 Add object selection and an inspector that displays the selected body's mass, position, and velocity and allows it to be deleted.
+
+## 2026-08-29 — Add persistent selection and body inspection
+
+### Objective
+
+Let users examine and manage individual simulation objects without interrupting the rest of the scene.
+
+### Interaction changes
+
+- A body remains selected after the mouse is released instead of being selected only while dragged.
+- Selection and dragging are represented as separate application states.
+- The selected body is highlighted and its mass, centre position, velocity, radius, and restitution are displayed.
+- The selected body can be removed with a panel button, Delete, or Backspace.
+
+### Environmental controls
+
+Gravity and wind are now two-dimensional controls with X and Y components. Users can create horizontal, vertical, or diagonal fields while the engine preserves the physical distinction between mass-independent gravity and mass-sensitive force.
+
+### Why this matters
+
+Persistent inspection makes the laboratory useful for experimentation rather than only observation. Separating selection from dragging also prepares the interface for editing future rectangles, static bodies, and material properties.
+
+### Verification
+
+- The application compiles with warnings enabled.
+- All body, collision, and broad-phase tests continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Add named preset scenes and begin a minimal Canvas mode that presents the same physics with a cleaner visual style.
+
+### Interface refinement
+
+Environmental controls can intentionally oppose each other, but the original panel made cancellation look accidental. Gravity and wind now have independent enable and reset controls, while the selected-body inspector displays their combined acceleration. This is important because the same wind force creates different acceleration for bodies with different masses.
+
+The laboratory panel now uses collapsible sections and a smaller default size. Core playback controls remain visible, while environment, selection, spawning, debug tools, and performance details can be expanded as needed.

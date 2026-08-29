@@ -191,12 +191,15 @@ int main()
     bool paused = false;
     bool stepRequested = false;
     std::optional<std::size_t> selectedBody;
+    std::optional<std::size_t> draggedBody;
     float selectedInverseMass = 0.f;
     sf::Vector2f dragOffset;
     sf::Vector2f lastMousePosition;
     sf::Vector2f throwVelocity;
-    float gravity = GRAVITY;
-    float windForce = 0.f;
+    float gravityField[2] = {0.f, GRAVITY};
+    float windForce[2] = {0.f, 0.f};
+    bool gravityEnabled = true;
+    bool windEnabled = true;
     float floorFriction = 0.98f;
     float spawnRadius = 22.f;
     float spawnRestitution = 0.75f;
@@ -222,13 +225,20 @@ int main()
 
         for (std::size_t index = 0; index < bodies.size(); ++index)
         {
-            if (selectedBody && index == *selectedBody)
+            if (draggedBody && index == *draggedBody)
             {
                 continue;
             }
 
-            bodies[index].body.acceleration = sf::Vector2f(0.f, gravity);
-            bodies[index].body.applyForce(sf::Vector2f(windForce, 0.f));
+            bodies[index].body.acceleration = gravityEnabled
+                ? sf::Vector2f(gravityField[0], gravityField[1])
+                : sf::Vector2f(0.f, 0.f);
+            if (windEnabled)
+            {
+                bodies[index].body.applyForce(
+                    sf::Vector2f(windForce[0], windForce[1])
+                );
+            }
             bodies[index].body.integrate(FIXED_TIME_STEP);
             bodies[index].body.resolveBounds(
                 windowWidth,
@@ -323,6 +333,7 @@ int main()
                 {
                     resetScene();
                     selectedBody.reset();
+                    draggedBody.reset();
                     paused = false;
                     accumulator = 0.f;
                 }
@@ -336,6 +347,17 @@ int main()
                 )
                 {
                     stepRequested = true;
+                }
+                else if (
+                    (keyPressed->scancode == sf::Keyboard::Scancode::Delete ||
+                     keyPressed->scancode == sf::Keyboard::Scancode::Backspace) &&
+                    selectedBody && *selectedBody < bodies.size()
+                )
+                {
+                    bodies.erase(bodies.begin() +
+                        static_cast<std::ptrdiff_t>(*selectedBody));
+                    selectedBody.reset();
+                    draggedBody.reset();
                 }
             }
 
@@ -355,6 +377,7 @@ int main()
 
                     if (selectedBody)
                     {
+                        draggedBody = selectedBody;
                         auto& selected = bodies[*selectedBody].body;
                         selectedInverseMass = selected.inverseMass;
                         selected.inverseMass = 0.f;
@@ -390,13 +413,13 @@ int main()
             {
                 if (
                     mouseReleased->button == sf::Mouse::Button::Left &&
-                    selectedBody && *selectedBody < bodies.size()
+                    draggedBody && *draggedBody < bodies.size()
                 )
                 {
-                    auto& selected = bodies[*selectedBody].body;
+                    auto& selected = bodies[*draggedBody].body;
                     selected.inverseMass = selectedInverseMass;
                     selected.velocity = throwVelocity;
-                    selectedBody.reset();
+                    draggedBody.reset();
                 }
             }
         }
@@ -416,41 +439,10 @@ int main()
         }
 
         ImGui::SetNextWindowPos(ImVec2(12.f, 12.f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(360.f, 0.f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(315.f, 500.f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Physics Laboratory");
         ImGui::Text("Status: %s", paused ? "Paused" : "Running");
         ImGui::Text("Bodies: %zu", bodies.size());
-        ImGui::Text("Render rate: %.0f FPS", framesPerSecond);
-        ImGui::Text("Physics rate: 120 Hz");
-        ImGui::Text("Search: %s", useSpatialGrid ? "Uniform grid" : "All pairs");
-        ImGui::Text("All possible pairs: %zu", allPairsCount);
-        ImGui::Text("Candidate checks: %zu", candidatePairChecks);
-        const float candidateReduction = allPairsCount > 0
-            ? 100.f * (1.f - static_cast<float>(candidatePairChecks) /
-                static_cast<float>(allPairsCount))
-            : 0.f;
-        ImGui::Text("Candidate reduction: %.1f%%", candidateReduction);
-        ImGui::Text("Actual contacts: %zu", actualCollisions);
-        ImGui::Text("Physics step: %.3f ms", physicsStepMilliseconds);
-        ImGui::Checkbox("Use spatial grid", &useSpatialGrid);
-        ImGui::BeginDisabled(!useSpatialGrid);
-        ImGui::SliderFloat("Grid cell size", &gridCellSize, 20.f, 120.f, "%.0f px");
-        ImGui::EndDisabled();
-        ImGui::Separator();
-        ImGui::SliderFloat("Gravity", &gravity, -1000.f, 1500.f, "%.0f px/s^2");
-        ImGui::SliderFloat("Wind force", &windForce, -5000.f, 5000.f, "%.0f");
-        ImGui::SliderFloat("Spawn radius", &spawnRadius, 6.f, 60.f, "%.0f px");
-        ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
-        ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
-        ImGui::Separator();
-        ImGui::Text("Debug visualization");
-        ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
-        ImGui::Checkbox("Contact points", &showContacts);
-        ImGui::Checkbox("Collision normals", &showCollisionNormals);
-        ImGui::BeginDisabled(!useSpatialGrid);
-        ImGui::Checkbox("Spatial grid", &showSpatialGrid);
-        ImGui::EndDisabled();
-        ImGui::Separator();
 
         if (ImGui::Button(paused ? "Resume" : "Pause"))
         {
@@ -469,6 +461,7 @@ int main()
         {
             resetScene();
             selectedBody.reset();
+            draggedBody.reset();
             accumulator = 0.f;
         }
         ImGui::SameLine();
@@ -476,27 +469,156 @@ int main()
         {
             bodies.clear();
             selectedBody.reset();
+            draggedBody.reset();
         }
+
+        if (ImGui::CollapsingHeader(
+                "Environment",
+                ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            ImGui::Checkbox("Gravity enabled", &gravityEnabled);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Reset gravity"))
+            {
+                gravityField[0] = 0.f;
+                gravityField[1] = GRAVITY;
+            }
+            ImGui::BeginDisabled(!gravityEnabled);
+            ImGui::SliderFloat2(
+                "Gravity X/Y",
+                gravityField,
+                -1500.f,
+                1500.f,
+                "%.0f"
+            );
+            ImGui::EndDisabled();
+
+            ImGui::Checkbox("Wind enabled", &windEnabled);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Reset wind"))
+            {
+                windForce[0] = 0.f;
+                windForce[1] = 0.f;
+            }
+            ImGui::BeginDisabled(!windEnabled);
+            ImGui::SliderFloat2(
+                "Wind X/Y",
+                windForce,
+                -5000.f,
+                5000.f,
+                "%.0f"
+            );
+            ImGui::EndDisabled();
+        }
+
+        if (ImGui::CollapsingHeader(
+                "Selected body",
+                ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            if (selectedBody && *selectedBody < bodies.size())
+            {
+                const auto& selected = bodies[*selectedBody].body;
+                const float inverseMass = draggedBody
+                    ? selectedInverseMass
+                    : selected.inverseMass;
+                const float mass = inverseMass > 0.f ? 1.f / inverseMass : 0.f;
+                const sf::Vector2f center = selected.center();
+                const sf::Vector2f netAcceleration =
+                    (gravityEnabled
+                        ? sf::Vector2f(gravityField[0], gravityField[1])
+                        : sf::Vector2f(0.f, 0.f)) +
+                    (windEnabled
+                        ? sf::Vector2f(windForce[0], windForce[1]) * inverseMass
+                        : sf::Vector2f(0.f, 0.f));
+                ImGui::Text("Mass: %.1f", mass);
+                ImGui::Text("Position: (%.1f, %.1f)", center.x, center.y);
+                ImGui::Text(
+                    "Velocity: (%.1f, %.1f)",
+                    selected.velocity.x,
+                    selected.velocity.y
+                );
+                ImGui::Text(
+                    "Net acceleration: (%.1f, %.1f)",
+                    netAcceleration.x,
+                    netAcceleration.y
+                );
+                ImGui::Text(
+                    "Radius: %.1f  Restitution: %.2f",
+                    selected.radius,
+                    selected.restitution
+                );
+                if (ImGui::Button("Delete selected"))
+                {
+                    bodies.erase(bodies.begin() +
+                        static_cast<std::ptrdiff_t>(*selectedBody));
+                    selectedBody.reset();
+                    draggedBody.reset();
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("Click a body to inspect it");
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Spawn and materials"))
+        {
+            ImGui::SliderFloat("Spawn radius", &spawnRadius, 6.f, 60.f, "%.0f px");
+            ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
+            ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
+        }
+
+        if (ImGui::CollapsingHeader("Debug visualization"))
+        {
+            ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
+            ImGui::Checkbox("Contact points", &showContacts);
+            ImGui::Checkbox("Collision normals", &showCollisionNormals);
+            ImGui::BeginDisabled(!useSpatialGrid);
+            ImGui::Checkbox("Spatial grid", &showSpatialGrid);
+            ImGui::EndDisabled();
+        }
+
+        if (ImGui::CollapsingHeader("Performance"))
+        {
+            ImGui::Text("Render: %.0f FPS  Physics: 120 Hz", framesPerSecond);
+            ImGui::Text("Search: %s", useSpatialGrid ? "Uniform grid" : "All pairs");
+            ImGui::Text("All pairs: %zu", allPairsCount);
+            ImGui::Text("Candidates: %zu", candidatePairChecks);
+            const float candidateReduction = allPairsCount > 0
+                ? 100.f * (1.f - static_cast<float>(candidatePairChecks) /
+                    static_cast<float>(allPairsCount))
+                : 0.f;
+            ImGui::Text("Reduction: %.1f%%", candidateReduction);
+            ImGui::Text("Contacts: %zu", actualCollisions);
+            ImGui::Text("Physics step: %.3f ms", physicsStepMilliseconds);
+            ImGui::Checkbox("Use spatial grid", &useSpatialGrid);
+            ImGui::BeginDisabled(!useSpatialGrid);
+            ImGui::SliderFloat("Cell size", &gridCellSize, 20.f, 120.f, "%.0f px");
+            ImGui::EndDisabled();
+            if (ImGui::Button("Load 100 bodies"))
+            {
+                loadStressScene(100);
+                selectedBody.reset();
+                draggedBody.reset();
+                accumulator = 0.f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Load 300 bodies"))
+            {
+                loadStressScene(300);
+                selectedBody.reset();
+                draggedBody.reset();
+                accumulator = 0.f;
+            }
+        }
+
         ImGui::TextDisabled("Click: spawn  Drag: throw");
         ImGui::TextDisabled("Space: pause  N: step  R: reset");
-        ImGui::Separator();
-        ImGui::Text("Performance scenes");
-        if (ImGui::Button("Load 100 bodies"))
-        {
-            loadStressScene(100);
-            selectedBody.reset();
-            accumulator = 0.f;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Load 300 bodies"))
-        {
-            loadStressScene(300);
-            selectedBody.reset();
-            accumulator = 0.f;
-        }
         ImGui::End();
 
-        if (selectedBody && *selectedBody < bodies.size())
+        if (draggedBody && *draggedBody < bodies.size())
         {
             const sf::Vector2f mousePosition =
                 toWorldPosition(sf::Mouse::getPosition(window));
@@ -508,7 +630,7 @@ int main()
                 limitMagnitude(throwVelocity, MAX_THROW_SPEED);
             }
 
-            auto& selected = bodies[*selectedBody].body;
+            auto& selected = bodies[*draggedBody].body;
             selected.position.x = std::clamp(
                 mousePosition.x - dragOffset.x,
                 0.f,

@@ -30,6 +30,11 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Optional uniform-grid broad phase that rejects distant collision pairs
 - Visible grid overlay and live candidate-reduction percentage
 - Per-body force accumulation with an interactive wind-force demonstration
+- Persistent object selection with mass, position, velocity, and material data
+- Delete selected bodies from the panel or keyboard
+- Two-dimensional gravity and wind controls for diagonal environmental fields
+- Compact, collapsible laboratory panel with field toggles and reset controls
+- Selected-body net acceleration display for understanding combined fields
 
 ## Requirements
 
