@@ -22,12 +22,19 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Press `Space` to pause or resume
 - Press `N` to advance one physics step while paused
 - Press `R` to reset the simulation
+- On-screen laboratory panel with live statistics and controls for gravity,
+  spawn radius, restitution, and floor friction
+- Panel buttons to pause, single-step, reset, or clear the simulation
 
 ## Requirements
 
 - A C++17-compatible compiler
-- CMake 3.16 or newer
+- CMake 3.22 or newer
 - SFML 3
+
+CMake downloads pinned versions of Dear ImGui and ImGui-SFML the first time the
+project is configured. They provide the control-panel widgets; all simulation
+and collision physics remain implemented in this repository.
 
 ## Build and run
 

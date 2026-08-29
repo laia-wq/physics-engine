@@ -185,3 +185,33 @@ Turn the passive demonstration into the first version of an interactive physics 
 ### Next step
 
 Visually test all controls, then add an on-screen status and parameter panel for gravity, spawn radius, restitution, body count, and simulation performance.
+
+## 2026-08-28 — Add a live laboratory control panel
+
+### Objective
+
+Make physics parameters observable and adjustable while the simulation runs.
+
+### Controls and instrumentation
+
+- Display running or paused state, body count, render rate, and the fixed physics rate.
+- Adjust gravity, spawn radius, spawn restitution, and floor friction with sliders.
+- Pause, single-step, reset, and clear the scene with visible buttons.
+- Keep the existing keyboard controls for efficient use.
+
+### Design decisions
+
+- Use Dear ImGui through the official ImGui-SFML bridge instead of implementing generic UI widgets inside the physics project.
+- Pin both dependency versions in CMake so builds remain reproducible.
+- Respect ImGui's mouse and keyboard capture flags so panel input cannot accidentally manipulate the simulation beneath it.
+- Keep panel and rendering code in the application layer; `physics-core` remains independent and testable.
+
+### Verification
+
+- The complete application compiles with warnings enabled.
+- Both automated physics test suites continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually verify the panel and begin debug drawing for velocity vectors, collision normals, and contact points.

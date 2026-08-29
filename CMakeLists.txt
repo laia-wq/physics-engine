@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 
 project(PhysicsEngine LANGUAGES CXX)
 
@@ -7,6 +7,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
+
+include(FetchContent)
+
+FetchContent_Declare(
+    ImGui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.91.9b
+    GIT_SHALLOW ON
+)
+
+FetchContent_MakeAvailable(ImGui)
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
+
+FetchContent_Declare(
+    ImGui-SFML
+    GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
+    GIT_TAG v3.0
+    GIT_SHALLOW ON
+)
+
+set(IMGUI_SFML_FIND_SFML OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(ImGui-SFML)
 
 function(enable_project_warnings target)
     if(MSVC)
@@ -27,6 +49,7 @@ enable_project_warnings(physics-engine)
 target_link_libraries(
     physics-engine
     physics-core
+    ImGui-SFML::ImGui-SFML
     SFML::Graphics
     SFML::Window
     SFML::System
