@@ -3,6 +3,7 @@
 #include <imgui-SFML.h>
 #include <imgui.h>
 
+#include "physics/BroadPhase.hpp"
 #include "physics/Collision.hpp"
 
 #include <algorithm>
@@ -133,6 +134,7 @@ int main()
     {
         return 1;
     }
+    ImGui::GetIO().IniFilename = nullptr;
 
     std::vector<CircleView> bodies;
 
@@ -201,7 +203,11 @@ int main()
     bool showVelocityVectors = false;
     bool showContacts = false;
     bool showCollisionNormals = false;
+    bool showSpatialGrid = false;
+    bool useSpatialGrid = false;
+    float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
+    std::size_t allPairsCount = 0;
     std::size_t candidatePairChecks = 0;
     std::size_t actualCollisions = 0;
     double physicsStepMilliseconds = 0.0;
@@ -211,6 +217,7 @@ int main()
         const auto stepStart = std::chrono::steady_clock::now();
         candidatePairChecks = 0;
         actualCollisions = 0;
+        allPairsCount = bodies.size() * (bodies.size() - (bodies.empty() ? 0 : 1)) / 2;
 
         for (std::size_t index = 0; index < bodies.size(); ++index)
         {
@@ -229,37 +236,59 @@ int main()
             );
         }
 
-        for (std::size_t first = 0; first < bodies.size(); ++first)
+        const auto processPair = [&](std::size_t first, std::size_t second)
         {
-            for (std::size_t second = first + 1; second < bodies.size(); ++second)
+            ++candidatePairChecks;
+            const sf::Vector2f firstCenter = bodies[first].body.center();
+            const sf::Vector2f secondCenter = bodies[second].body.center();
+            const sf::Vector2f difference = secondCenter - firstCenter;
+            const float distanceSquared =
+                difference.x * difference.x + difference.y * difference.y;
+            const float combinedRadius =
+                bodies[first].body.radius + bodies[second].body.radius;
+
+            if (distanceSquared <= combinedRadius * combinedRadius)
             {
-                ++candidatePairChecks;
-                const sf::Vector2f firstCenter =
-                    bodies[first].body.center();
-                const sf::Vector2f secondCenter =
-                    bodies[second].body.center();
-                const sf::Vector2f difference = secondCenter - firstCenter;
-                const float distanceSquared =
-                    difference.x * difference.x + difference.y * difference.y;
-                const float combinedRadius =
-                    bodies[first].body.radius + bodies[second].body.radius;
+                ++actualCollisions;
+                const sf::Vector2f normal = distanceSquared > 0.00000001f
+                    ? difference / std::sqrt(distanceSquared)
+                    : sf::Vector2f(1.f, 0.f);
+                debugContacts.push_back({
+                    firstCenter + normal * bodies[first].body.radius,
+                    normal
+                });
+            }
 
-                if (distanceSquared <= combinedRadius * combinedRadius)
+            physics::resolveCircleCollision(
+                bodies[first].body,
+                bodies[second].body
+            );
+        };
+
+        if (useSpatialGrid)
+        {
+            std::vector<physics::CircleBounds> bounds;
+            bounds.reserve(bodies.size());
+            for (const auto& view : bodies)
+            {
+                bounds.push_back({view.body.position, view.body.radius});
+            }
+
+            const auto pairs =
+                physics::buildUniformGridPairs(bounds, gridCellSize);
+            for (const auto& pair : pairs)
+            {
+                processPair(pair.first, pair.second);
+            }
+        }
+        else
+        {
+            for (std::size_t first = 0; first < bodies.size(); ++first)
+            {
+                for (std::size_t second = first + 1; second < bodies.size(); ++second)
                 {
-                    ++actualCollisions;
-                    const sf::Vector2f normal = distanceSquared > 0.00000001f
-                        ? difference / std::sqrt(distanceSquared)
-                        : sf::Vector2f(1.f, 0.f);
-                    debugContacts.push_back({
-                        firstCenter + normal * bodies[first].body.radius,
-                        normal
-                    });
+                    processPair(first, second);
                 }
-
-                physics::resolveCircleCollision(
-                    bodies[first].body,
-                    bodies[second].body
-                );
             }
         }
 
@@ -385,15 +414,26 @@ int main()
         }
 
         ImGui::SetNextWindowPos(ImVec2(12.f, 12.f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(270.f, 0.f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(360.f, 0.f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Physics Laboratory");
         ImGui::Text("Status: %s", paused ? "Paused" : "Running");
         ImGui::Text("Bodies: %zu", bodies.size());
         ImGui::Text("Render rate: %.0f FPS", framesPerSecond);
         ImGui::Text("Physics rate: 120 Hz");
-        ImGui::Text("Pair checks: %zu", candidatePairChecks);
+        ImGui::Text("Search: %s", useSpatialGrid ? "Uniform grid" : "All pairs");
+        ImGui::Text("All possible pairs: %zu", allPairsCount);
+        ImGui::Text("Candidate checks: %zu", candidatePairChecks);
+        const float candidateReduction = allPairsCount > 0
+            ? 100.f * (1.f - static_cast<float>(candidatePairChecks) /
+                static_cast<float>(allPairsCount))
+            : 0.f;
+        ImGui::Text("Candidate reduction: %.1f%%", candidateReduction);
         ImGui::Text("Actual contacts: %zu", actualCollisions);
         ImGui::Text("Physics step: %.3f ms", physicsStepMilliseconds);
+        ImGui::Checkbox("Use spatial grid", &useSpatialGrid);
+        ImGui::BeginDisabled(!useSpatialGrid);
+        ImGui::SliderFloat("Grid cell size", &gridCellSize, 20.f, 120.f, "%.0f px");
+        ImGui::EndDisabled();
         ImGui::Separator();
         ImGui::SliderFloat("Gravity", &gravity, -1000.f, 1500.f, "%.0f px/s^2");
         ImGui::SliderFloat("Spawn radius", &spawnRadius, 6.f, 60.f, "%.0f px");
@@ -404,6 +444,9 @@ int main()
         ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
         ImGui::Checkbox("Contact points", &showContacts);
         ImGui::Checkbox("Collision normals", &showCollisionNormals);
+        ImGui::BeginDisabled(!useSpatialGrid);
+        ImGui::Checkbox("Spatial grid", &showSpatialGrid);
+        ImGui::EndDisabled();
         ImGui::Separator();
 
         if (ImGui::Button(paused ? "Resume" : "Pause"))
@@ -533,6 +576,29 @@ int main()
         }
 
         window.clear();
+
+        if (showSpatialGrid && useSpatialGrid)
+        {
+            const sf::Color gridColor(45, 70, 90);
+            for (float x = 0.f; x <= windowWidth; x += gridCellSize)
+            {
+                drawLine(
+                    window,
+                    sf::Vector2f(x, 0.f),
+                    sf::Vector2f(x, windowHeight),
+                    gridColor
+                );
+            }
+            for (float y = 0.f; y <= windowHeight; y += gridCellSize)
+            {
+                drawLine(
+                    window,
+                    sf::Vector2f(0.f, y),
+                    sf::Vector2f(windowWidth, y),
+                    gridColor
+                );
+            }
+        }
 
         for (const auto& view : bodies)
         {

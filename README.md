@@ -27,6 +27,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Panel buttons to pause, single-step, reset, or clear the simulation
 - Optional debug drawing for body velocities, contact points, and collision normals
 - Live collision-search measurements and reproducible 100- and 300-body stress scenes
+- Optional uniform-grid broad phase that rejects distant collision pairs
+- Visible grid overlay and live candidate-reduction percentage
 
 ## Requirements
 
@@ -50,7 +52,7 @@ cmake --build build
 
 - Rotating rectangular rigid bodies
 - Stable friction and resting contacts
-- Broad-phase collision detection with spatial partitioning
+- Automated performance benchmark executable
 - Automated tests and performance benchmarks
 - Force accumulation and multiple simultaneous contact solving
 

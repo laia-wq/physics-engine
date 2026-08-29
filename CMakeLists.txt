@@ -38,7 +38,12 @@ function(enable_project_warnings target)
     endif()
 endfunction()
 
-add_library(physics-core src/CircleBody.cpp src/Collision.cpp)
+add_library(
+    physics-core
+    src/BroadPhase.cpp
+    src/CircleBody.cpp
+    src/Collision.cpp
+)
 target_include_directories(physics-core PUBLIC include)
 target_link_libraries(physics-core PUBLIC SFML::System)
 enable_project_warnings(physics-core)
@@ -67,4 +72,9 @@ if(BUILD_TESTING)
     target_link_libraries(circle-body-tests PRIVATE physics-core)
     enable_project_warnings(circle-body-tests)
     add_test(NAME circle-body-dynamics COMMAND circle-body-tests)
+
+    add_executable(broad-phase-tests tests/BroadPhaseTests.cpp)
+    target_link_libraries(broad-phase-tests PRIVATE physics-core)
+    enable_project_warnings(broad-phase-tests)
+    add_test(NAME uniform-grid-broad-phase COMMAND broad-phase-tests)
 endif()

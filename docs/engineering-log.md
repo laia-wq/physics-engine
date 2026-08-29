@@ -279,3 +279,59 @@ Keep this baseline available in the interface. After spatial partitioning is imp
 ### Next step
 
 Implement a uniform spatial grid that sends only nearby bodies to narrow-phase collision detection, then compare its candidate counts against this baseline.
+
+## 2026-08-29 — Add uniform-grid spatial partitioning
+
+### Objective
+
+Reduce wasted collision checks by considering only bodies that occupy at least one common region of space.
+
+### Approach
+
+The world is divided into equally sized square cells. Each circle is registered in every cell touched by its bounds. Bodies that never share a cell cannot collide, so they are removed before the detailed circle collision calculation.
+
+### Comparison controls
+
+- Switch between the original all-pairs search and the uniform grid at runtime.
+- Display the total possible pairs separately from the candidates produced by the selected search.
+- Adjust grid cell size to observe how partition size affects candidate count and runtime.
+- Reuse the same 100-body and 300-body scenes for a fair comparison.
+
+### Correctness safeguards
+
+- Register large circles in multiple cells so collisions across cell boundaries are not missed.
+- Deduplicate body pairs when two circles share more than one cell.
+- Test distant bodies, nearby bodies, and bodies spanning a grid boundary.
+
+### Verification
+
+- The complete project compiles with warnings enabled.
+- Circle dynamics, collision response, and uniform-grid tests pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Record before-and-after measurements, then visualize the grid and occupied cells to make the optimization understandable on screen.
+
+### Measured comparison
+
+Measurements were captured on the same machine, scenes, and 50-pixel cell size:
+
+| Bodies | Search | Candidate checks | Physics step |
+| ---: | --- | ---: | ---: |
+| 100 | All pairs | 4,950 | 0.798 ms |
+| 100 | Uniform grid | 378 | 0.359 ms |
+| 300 | All pairs | 44,850 | 7.704 ms |
+| 300 | Uniform grid | 3,705 | 2.233 ms |
+
+The grid removed approximately 92% of candidate checks. In the 300-body scene, the measured physics-step time decreased by approximately 71%.
+
+The UI now reports candidate reduction directly and can draw the grid behind the bodies. This connects the algorithm's numerical effect to an immediate visual explanation.
+
+### Repository hygiene
+
+ImGui's local window-layout file is disabled and ignored because panel positions are personal runtime state, not project source code.
+
+### Next step
+
+Commit the verified grid milestone, then add force accumulation so users can apply forces without directly rewriting body acceleration.
