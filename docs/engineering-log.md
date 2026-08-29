@@ -215,3 +215,36 @@ Make physics parameters observable and adjustable while the simulation runs.
 ### Next step
 
 Visually verify the panel and begin debug drawing for velocity vectors, collision normals, and contact points.
+
+## 2026-08-29 — Visualize hidden physics data
+
+### Objective
+
+Expose important internal simulation values so collision behavior can be inspected rather than inferred only from moving shapes.
+
+### Visual language
+
+- Green lines begin at body centers and represent velocity direction and magnitude.
+- Magenta markers identify calculated circle-circle contact points.
+- Cyan lines begin at contacts and show the collision normal from the first body toward the second.
+
+### Design decisions
+
+- Make each overlay independently selectable from the laboratory panel.
+- Scale and cap velocity lines so high speeds remain readable on screen.
+- Derive contact visualization from body state without changing collision response.
+- Keep all debug rendering outside `physics-core`; the simulation library still has no graphics dependency.
+
+### Verification
+
+- The application compiles with warnings enabled.
+- Both automated physics test suites continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually verify the overlays, then measure the current all-pairs collision algorithm before introducing spatial partitioning.
+
+### Visual verification correction
+
+The first implementation reconstructed contacts after collision resolution. Because penetration correction had already separated the bodies, brief impacts could disappear before rendering. Contact points and normals are now captured inside the simulation step immediately before response, then retained until the frame is drawn.

@@ -6,6 +6,7 @@
 #include "physics/Collision.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <optional>
 #include <vector>
@@ -19,7 +20,16 @@ constexpr float MINIMUM_BOUNCE_SPEED = 15.f;
 constexpr float FIXED_TIME_STEP = 1.f / 120.f;
 constexpr float MAX_FRAME_TIME = 0.25f;
 constexpr float MAX_THROW_SPEED = 1500.f;
+constexpr float VELOCITY_VECTOR_SCALE = 0.12f;
+constexpr float MAX_DEBUG_VECTOR_LENGTH = 120.f;
+constexpr float NORMAL_VECTOR_LENGTH = 35.f;
 }
+
+struct DebugContact
+{
+    sf::Vector2f point;
+    sf::Vector2f normal;
+};
 
 struct CircleView
 {
@@ -91,6 +101,20 @@ void limitMagnitude(sf::Vector2f& vector, float maximumLength)
     }
 }
 
+void drawLine(
+    sf::RenderWindow& window,
+    sf::Vector2f start,
+    sf::Vector2f end,
+    sf::Color color
+)
+{
+    const std::array vertices{
+        sf::Vertex{start, color},
+        sf::Vertex{end, color}
+    };
+    window.draw(vertices.data(), vertices.size(), sf::PrimitiveType::Lines);
+}
+
 int main()
 {
     const float windowWidth = WINDOW_WIDTH;
@@ -150,6 +174,10 @@ int main()
     float spawnRadius = 22.f;
     float spawnRestitution = 0.75f;
     float framesPerSecond = 0.f;
+    bool showVelocityVectors = false;
+    bool showContacts = false;
+    bool showCollisionNormals = false;
+    std::vector<DebugContact> debugContacts;
 
     const auto simulateStep = [&]()
     {
@@ -174,6 +202,27 @@ int main()
         {
             for (std::size_t second = first + 1; second < bodies.size(); ++second)
             {
+                const sf::Vector2f firstCenter =
+                    bodies[first].body.center();
+                const sf::Vector2f secondCenter =
+                    bodies[second].body.center();
+                const sf::Vector2f difference = secondCenter - firstCenter;
+                const float distanceSquared =
+                    difference.x * difference.x + difference.y * difference.y;
+                const float combinedRadius =
+                    bodies[first].body.radius + bodies[second].body.radius;
+
+                if (distanceSquared <= combinedRadius * combinedRadius)
+                {
+                    const sf::Vector2f normal = distanceSquared > 0.00000001f
+                        ? difference / std::sqrt(distanceSquared)
+                        : sf::Vector2f(1.f, 0.f);
+                    debugContacts.push_back({
+                        firstCenter + normal * bodies[first].body.radius,
+                        normal
+                    });
+                }
+
                 physics::resolveCircleCollision(
                     bodies[first].body,
                     bodies[second].body
@@ -310,6 +359,11 @@ int main()
         ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
         ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
         ImGui::Separator();
+        ImGui::Text("Debug visualization");
+        ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
+        ImGui::Checkbox("Contact points", &showContacts);
+        ImGui::Checkbox("Collision normals", &showCollisionNormals);
+        ImGui::Separator();
 
         if (ImGui::Button(paused ? "Resume" : "Pause"))
         {
@@ -378,8 +432,14 @@ int main()
 
         if (stepRequested)
         {
+            debugContacts.clear();
             simulateStep();
             stepRequested = false;
+        }
+
+        if (!paused && accumulator >= FIXED_TIME_STEP)
+        {
+            debugContacts.clear();
         }
 
         while (!paused && accumulator >= FIXED_TIME_STEP)
@@ -421,6 +481,44 @@ int main()
         for (const auto& view : bodies)
         {
             window.draw(view.shape);
+        }
+
+        if (showVelocityVectors)
+        {
+            for (const auto& view : bodies)
+            {
+                sf::Vector2f vector =
+                    view.body.velocity * VELOCITY_VECTOR_SCALE;
+                limitMagnitude(vector, MAX_DEBUG_VECTOR_LENGTH);
+                drawLine(
+                    window,
+                    view.body.center(),
+                    view.body.center() + vector,
+                    sf::Color(80, 255, 120)
+                );
+            }
+        }
+
+        for (const auto& contact : debugContacts)
+        {
+            if (showCollisionNormals)
+            {
+                drawLine(
+                    window,
+                    contact.point,
+                    contact.point + contact.normal * NORMAL_VECTOR_LENGTH,
+                    sf::Color(80, 220, 255)
+                );
+            }
+
+            if (showContacts)
+            {
+                sf::CircleShape marker(4.f);
+                marker.setOrigin(sf::Vector2f(4.f, 4.f));
+                marker.setPosition(contact.point);
+                marker.setFillColor(sf::Color(255, 80, 220));
+                window.draw(marker);
+            }
         }
 
         ImGui::SFML::Render(window);

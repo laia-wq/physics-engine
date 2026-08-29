@@ -25,6 +25,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - On-screen laboratory panel with live statistics and controls for gravity,
   spawn radius, restitution, and floor friction
 - Panel buttons to pause, single-step, reset, or clear the simulation
+- Optional debug drawing for body velocities, contact points, and collision normals
 
 ## Requirements
 
@@ -50,7 +51,7 @@ cmake --build build
 - Stable friction and resting contacts
 - Broad-phase collision detection with spatial partitioning
 - Automated tests and performance benchmarks
-- Debug visualization for contacts, normals, and velocities
+- Force accumulation and multiple simultaneous contact solving
 
 ## Architecture
 
