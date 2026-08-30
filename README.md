@@ -35,6 +35,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Two-dimensional gravity and wind controls for diagonal environmental fields
 - Compact, collapsible laboratory panel with field toggles and reset controls
 - Selected-body net acceleration display for understanding combined fields
+- Two-dimensional vector pads for intuitive field direction and strength
+- Named classic, head-on collision, zero-gravity, and particle-rain scenes
 
 ## Requirements
 

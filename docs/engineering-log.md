@@ -402,3 +402,34 @@ Add named preset scenes and begin a minimal Canvas mode that presents the same p
 Environmental controls can intentionally oppose each other, but the original panel made cancellation look accidental. Gravity and wind now have independent enable and reset controls, while the selected-body inspector displays their combined acceleration. This is important because the same wind force creates different acceleration for bodies with different masses.
 
 The laboratory panel now uses collapsible sections and a smaller default size. Core playback controls remain visible, while environment, selection, spawning, debug tools, and performance details can be expanded as needed.
+
+## 2026-08-29 — Add vector pads and demonstration presets
+
+### Objective
+
+Make two-dimensional fields direct to control and make important behaviors repeatable.
+
+### Vector-pad interaction
+
+Gravity and wind now use square control surfaces rather than separate horizontal sliders. The centre represents zero, direction from the centre represents field direction, and distance represents strength. Diagonal input changes X and Y together in one gesture.
+
+Gravity and wind remain separate pads because they have different relationships to mass.
+
+### Preset scenes
+
+- Classic restores the original three-body gravity scene.
+- Head-on creates an elastic two-body collision without environmental fields.
+- Zero-G drift demonstrates motion and collisions without gravity or wind.
+- Particle rain creates a repeatable many-body falling scene.
+
+Presets configure both scene contents and environmental state, making demonstrations more reliable for testing, videos, and interviews.
+
+### Verification
+
+- The application compiles with warnings enabled.
+- All body, collision, and broad-phase tests continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Begin Canvas mode with a hidden laboratory panel, curated colour palettes, and optional motion trails.

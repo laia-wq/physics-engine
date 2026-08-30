@@ -117,6 +117,57 @@ void drawLine(
     window.draw(vertices.data(), vertices.size(), sf::PrimitiveType::Lines);
 }
 
+void vectorPad(const char* label, float values[2], float maximumValue)
+{
+    constexpr float padSize = 180.f;
+    ImGui::PushID(label);
+    ImGui::TextUnformatted(label);
+    const ImVec2 topLeft = ImGui::GetCursorScreenPos();
+    ImGui::InvisibleButton("pad", ImVec2(padSize, padSize));
+
+    if (ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        const float normalizedX = std::clamp(
+            (mouse.x - topLeft.x) / padSize * 2.f - 1.f,
+            -1.f,
+            1.f
+        );
+        const float normalizedY = std::clamp(
+            (mouse.y - topLeft.y) / padSize * 2.f - 1.f,
+            -1.f,
+            1.f
+        );
+        values[0] = normalizedX * maximumValue;
+        values[1] = normalizedY * maximumValue;
+    }
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImVec2 bottomRight(topLeft.x + padSize, topLeft.y + padSize);
+    const ImVec2 center(topLeft.x + padSize * 0.5f, topLeft.y + padSize * 0.5f);
+    drawList->AddRectFilled(topLeft, bottomRight, IM_COL32(20, 29, 39, 255));
+    drawList->AddRect(topLeft, bottomRight, IM_COL32(90, 120, 145, 255));
+    drawList->AddLine(
+        ImVec2(center.x, topLeft.y),
+        ImVec2(center.x, bottomRight.y),
+        IM_COL32(65, 85, 105, 255)
+    );
+    drawList->AddLine(
+        ImVec2(topLeft.x, center.y),
+        ImVec2(bottomRight.x, center.y),
+        IM_COL32(65, 85, 105, 255)
+    );
+
+    const ImVec2 handle(
+        center.x + values[0] / maximumValue * padSize * 0.5f,
+        center.y + values[1] / maximumValue * padSize * 0.5f
+    );
+    drawList->AddLine(center, handle, IM_COL32(80, 190, 255, 255), 2.f);
+    drawList->AddCircleFilled(handle, 7.f, IM_COL32(80, 190, 255, 255));
+    ImGui::Text("X: %.0f   Y: %.0f", values[0], values[1]);
+    ImGui::PopID();
+}
+
 int main()
 {
     const float windowWidth = WINDOW_WIDTH;
@@ -182,6 +233,48 @@ int main()
                 sf::Vector2f(x, y),
                 sf::Vector2f(horizontalVelocity, 0.f),
                 0.65f
+            );
+        }
+    };
+
+    const auto loadHeadOnScene = [&bodies]()
+    {
+        bodies.clear();
+        bodies.emplace_back(
+            30.f, sf::Vector2f(180.f, 270.f),
+            sf::Vector2f(220.f, 0.f), 1.f
+        );
+        bodies.emplace_back(
+            30.f, sf::Vector2f(560.f, 270.f),
+            sf::Vector2f(-220.f, 0.f), 1.f
+        );
+    };
+
+    const auto loadZeroGravityScene = [&bodies]()
+    {
+        bodies.clear();
+        for (std::size_t index = 0; index < 16; ++index)
+        {
+            const float x = 80.f + static_cast<float>(index % 4) * 180.f;
+            const float y = 70.f + static_cast<float>(index / 4) * 130.f;
+            const float vx = index % 2 == 0 ? 90.f : -90.f;
+            const float vy = index % 3 == 0 ? 70.f : -50.f;
+            bodies.emplace_back(
+                14.f + static_cast<float>(index % 3) * 4.f,
+                sf::Vector2f(x, y), sf::Vector2f(vx, vy), 0.95f
+            );
+        }
+    };
+
+    const auto loadRainScene = [&bodies]()
+    {
+        bodies.clear();
+        for (std::size_t index = 0; index < 60; ++index)
+        {
+            const float x = 15.f + static_cast<float>(index % 20) * 39.f;
+            const float y = 20.f + static_cast<float>(index / 20) * 28.f;
+            bodies.emplace_back(
+                7.f, sf::Vector2f(x, y), sf::Vector2f(0.f, 0.f), 0.7f
             );
         }
     };
@@ -485,13 +578,7 @@ int main()
                 gravityField[1] = GRAVITY;
             }
             ImGui::BeginDisabled(!gravityEnabled);
-            ImGui::SliderFloat2(
-                "Gravity X/Y",
-                gravityField,
-                -1500.f,
-                1500.f,
-                "%.0f"
-            );
+            vectorPad("Gravity direction", gravityField, 1500.f);
             ImGui::EndDisabled();
 
             ImGui::Checkbox("Wind enabled", &windEnabled);
@@ -502,14 +589,54 @@ int main()
                 windForce[1] = 0.f;
             }
             ImGui::BeginDisabled(!windEnabled);
-            ImGui::SliderFloat2(
-                "Wind X/Y",
-                windForce,
-                -5000.f,
-                5000.f,
-                "%.0f"
-            );
+            vectorPad("Wind direction", windForce, 5000.f);
             ImGui::EndDisabled();
+        }
+
+        if (ImGui::CollapsingHeader("Preset scenes"))
+        {
+            if (ImGui::Button("Classic"))
+            {
+                resetScene();
+                gravityField[0] = 0.f;
+                gravityField[1] = GRAVITY;
+                windForce[0] = 0.f;
+                windForce[1] = 0.f;
+                gravityEnabled = true;
+                windEnabled = true;
+                selectedBody.reset();
+                draggedBody.reset();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Head-on"))
+            {
+                loadHeadOnScene();
+                gravityEnabled = false;
+                windEnabled = false;
+                selectedBody.reset();
+                draggedBody.reset();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Zero-G drift"))
+            {
+                loadZeroGravityScene();
+                gravityEnabled = false;
+                windEnabled = false;
+                selectedBody.reset();
+                draggedBody.reset();
+            }
+            if (ImGui::Button("Particle rain"))
+            {
+                loadRainScene();
+                gravityField[0] = 0.f;
+                gravityField[1] = 700.f;
+                windForce[0] = 0.f;
+                windForce[1] = 0.f;
+                gravityEnabled = true;
+                windEnabled = true;
+                selectedBody.reset();
+                draggedBody.reset();
+            }
         }
 
         if (ImGui::CollapsingHeader(
