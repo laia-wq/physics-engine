@@ -37,6 +37,18 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Selected-body net acceleration display for understanding combined fields
 - Two-dimensional vector pads for intuitive field direction and strength
 - Named classic, head-on collision, zero-gravity, and particle-rain scenes
+- Canvas mode with additive colour palettes and optional fading motion trails
+- Press `Tab` to switch modes, `T` for trails, and `P` to cycle palettes
+- Interactive inverse-square attraction, repulsion, vortex, and orbital presets
+- Right-click point-field placement and hideable Canvas controls
+- Spatial-grid stress scenes for 600 and 1,000 field-driven bodies, with experimental collisions
+- Prominent population controls and optional body collisions in both modes
+- Explicit field-placement mode for trackpads and other one-button input
+- Draggable point fields and adjustable aerodynamic wind sensitivity
+- Three-size population mixtures with adjustable radii and clear percentages
+- Independent radius and mass controls for individually spawned bodies
+- One shared physics panel in Laboratory and Canvas views; press `C` to hide it
+- Restart the currently loaded experiment with `R` without changing its fields
 
 ## Requirements
 

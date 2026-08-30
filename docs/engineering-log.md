@@ -433,3 +433,87 @@ Presets configure both scene contents and environmental state, making demonstrat
 ### Next step
 
 Begin Canvas mode with a hidden laboratory panel, curated colour palettes, and optional motion trails.
+
+## 2026-08-29 — Introduce Canvas mode
+
+### Objective
+
+Present the same simulation as an expressive interactive artwork without weakening or duplicating the underlying engineering system.
+
+### Presentation modes
+
+- Laboratory mode retains controls, inspection, debug rendering, and measurements.
+- Canvas mode hides the laboratory panel and renders bodies with curated additive colour palettes.
+- `Tab` switches modes, `T` toggles trails, and `P` cycles palettes.
+
+### Motion-trail technique
+
+Canvas mode draws into a persistent off-screen texture. Each frame adds the current bodies and covers older pixels with a slightly transparent background colour. Previous positions therefore fade gradually instead of disappearing immediately.
+
+This is strictly a rendering effect. Body state, forces, collision response, fixed-timestep integration, and broad-phase selection are shared unchanged between both modes.
+
+### Verification
+
+- The graphical application compiles with warnings enabled.
+- All physics and spatial-grid tests continue to pass.
+- `git diff --check` reports no whitespace errors.
+
+### Next step
+
+Visually tune palettes and trail persistence, then begin axis-aligned rectangular rigid bodies.
+
+## 2026-08-29 — Add interactive point fields
+
+### Objective
+
+Let users shape Canvas motion directly and explore collective patterns produced by position-dependent fields.
+
+### Field model
+
+- Attraction accelerates bodies toward a movable point.
+- Repulsion reverses the radial field and pushes bodies away.
+- A perpendicular component produces vortex motion around the point.
+- Softening limits acceleration near the centre and avoids a numerical singularity.
+
+The field follows an inverse-square-inspired model. It is suitable for classical gravitational, electrostatic, orbital, and vortex demonstrations, but is not presented as a quantum simulation.
+
+### Canvas interaction
+
+- A compact Canvas panel exposes gravity, wind, radial strength, and vortex strength.
+- `C` hides or reveals Canvas controls.
+- Right-click moves the point field directly in the scene.
+- A visible ring marks the current field location.
+
+### Scale
+
+Stress scenes now include 600 and 1,000 field-driven bodies and automatically enable the spatial grid. Body-to-body collisions remain available as an experimental toggle, while a future lightweight particle mode will target 10,000 bodies without claiming full rigid-body collision behavior at that scale.
+
+### Next step
+
+Visually validate the new fields and large scenes, tune stability, and then begin axis-aligned rectangular rigid bodies.
+
+### Visual-test corrections
+
+Basic presets now explicitly disable point fields, preventing attraction or vortex state from leaking into later gravity experiments. Population buttons also restore a known gravity-only environment instead of silently preserving a previous field preset.
+
+Body-count controls are prominent in both Laboratory and Canvas modes. The 600- and 1,000-body scenes default to collisions disabled for smooth mixed-size, field-driven visualization. Full collisions can be re-enabled as an experimental option, but dense piles remain limited by the current single-pass contact solver.
+
+Point placement now has an explicit button followed by a click in the scene, while Canvas right-click placement remains available.
+
+### Further interaction corrections
+
+The Canvas field marker can now be grabbed and dragged continuously with the left mouse button. This makes the effect of a moving attractor or vortex observable in real time and removes dependence on right-click support.
+
+Wind now uses an aerodynamic size model instead of a uniform-flow option. Exposed width grows with radius while default mass grows with radius squared, so smaller bodies accelerate more strongly without the extreme difference caused by applying one identical force to every body. A sensitivity slider exaggerates or softens this effect without changing collision mass.
+
+Population generation supports small, medium, and large body types. Each type has a radius and a percentage of the population; percentages are normalized automatically when a scene is regenerated. Individually spawned bodies can either derive mass from radius or use a separately specified mass, including zero for a static body.
+
+Field dragging now works in both modes, uses a larger invisible grab area around the marker, and begins immediately when the move/drag placement control is used.
+
+The size-mixture editor now groups radius and population percentage under each ball type. Editing one percentage proportionally rebalances the other two, so the population total always remains exactly 100%.
+
+Laboratory and Canvas now use one shared physics-control panel. Switching views changes only the rendering style; bodies, forces, fields, presets, inspection, materials, and performance settings remain continuously available. `C` hides or restores the panel in either view, while Canvas-only trail and palette settings appear in a small section of the same panel.
+
+Restart semantics now use a saved body snapshot from the most recently loaded scene or generated population. `R` and the Restart button restore those starting positions and velocities while preserving the current gravity, wind, point-field, and material controls. The Classic preset remains the explicit way to return to the original three-ball demonstration.
+
+The shared panel exposed an ImGui identifier collision between the Vortex preset button and Vortex field-strength slider. Their visible labels remain unchanged, but each now has a distinct hidden identifier so ImGui can track them independently.
