@@ -540,3 +540,24 @@ The field system now demonstrates superposition and removes a single-instance de
 ### Interaction tools and temporary forces
 
 Left-click behavior is now explicit rather than contextually spawning bodies. Select/throw prioritizes body inspection and does nothing on empty space; Spawn body creates particles intentionally; Move fields edits permanent field markers; and Force pulse creates a short-lived field at the click position. Pulse radial strength, vortex strength, and lifetime are adjustable, with attract, repel, and vortex shortcuts. Temporary fields use the same force-superposition calculation as permanent fields and are removed automatically or when the experiment restarts.
+
+## 2026-09-01 — Charged particle populations
+
+### Goal
+
+Give particles an independent signed property so one field can produce different motion across a mixed population without changing gravity, collision mass, or material behavior.
+
+### Implementation
+
+- Circle bodies store a charge from negative through neutral to positive; new bodies default to neutral.
+- Population controls generate automatically balanced percentages of positive, neutral, and negative particles.
+- Spawn controls set charge independently from radius and mass.
+- Charge-sensitive fields reverse their response for negative particles, affect positive particles in the original direction, and exert no electric-style force on neutral particles.
+- Electric-style acceleration also accounts for inverse mass, so a lighter charged body responds more strongly than a heavier body with the same charge.
+- Charge-aware force pulses use the same temporary-field lifetime system.
+- Optional charge colouring uses warm colours for positive particles, cool blue for negative particles, and the normal palette for neutral particles.
+- The Charge separation preset provides a controlled demonstration with collisions disabled so the three populations remain visually legible.
+
+### Verification
+
+An automated body test confirms that particles begin neutral and that changing charge does not alter inverse mass. Existing integration, collision, and broad-phase tests remain part of the regression suite.

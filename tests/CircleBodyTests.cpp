@@ -51,6 +51,13 @@ int main()
     expect(nearlyEqual(forcedBody.accumulatedForce.x, 0.f),
            "forces clear after each integration step");
 
+    expect(nearlyEqual(forcedBody.charge, 0.f),
+           "new bodies are electrically neutral by default");
+    const float inverseMassBeforeCharge = forcedBody.inverseMass;
+    forcedBody.charge = -1.f;
+    expect(nearlyEqual(forcedBody.inverseMass, inverseMassBeforeCharge),
+           "charge is independent from physical mass");
+
     forcedBody.integrate(0.5f);
     expect(nearlyEqual(forcedBody.velocity.x, 1.f),
            "a cleared force is not applied again on the next step");

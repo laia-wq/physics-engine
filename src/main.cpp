@@ -43,6 +43,7 @@ struct PointField
     float oscillationAmount = 0.f;
     float oscillationFrequency = 1.f;
     float remainingLifetime = -1.f;
+    bool chargeSensitive = false;
 };
 
 struct CircleView
@@ -382,15 +383,19 @@ int main()
     float pulseRadialStrength = 8000000.f;
     float pulseVortexStrength = 0.f;
     float pulseDuration = 1.f;
+    bool pulseChargeSensitive = false;
+    bool colorByCharge = false;
     constexpr float FIELD_SOFTENING = 35.f;
     float floorFriction = 0.98f;
     float spawnRadius = 22.f;
     float spawnMass = spawnRadius * spawnRadius;
     bool automaticSpawnMass = true;
     float spawnRestitution = 0.75f;
+    float spawnCharge = 0.f;
     std::size_t populationCount = 300;
     float populationRadii[3] = {5.f, 12.f, 24.f};
     float populationPercentages[3] = {60.f, 30.f, 10.f};
+    float chargePercentages[3] = {25.f, 50.f, 25.f};
     float framesPerSecond = 0.f;
     bool showVelocityVectors = false;
     bool showContacts = false;
@@ -425,10 +430,13 @@ int main()
             constexpr float PI = 3.14159265359f;
             const float oscillation = 1.f + field.oscillationAmount *
                 std::sin(2.f * PI * field.oscillationFrequency * simulationTime);
+            const float response = field.chargeSensitive
+                ? body.charge * body.inverseMass * 400.f
+                : 1.f;
             totalAcceleration +=
-                direction * (field.radialStrength * oscillation /
+                direction * (field.radialStrength * oscillation * response /
                     softenedDistanceSquared) +
-                tangent * (field.vortexStrength * oscillation /
+                tangent * (field.vortexStrength * oscillation * response /
                     softenedDistanceSquared);
         }
         return totalAcceleration;
@@ -462,6 +470,16 @@ int main()
         const float mediumBoundary =
             (populationPercentages[0] + populationPercentages[1]) /
             totalPercentage;
+        const float totalChargePercentage = std::max(
+            chargePercentages[0] + chargePercentages[1] +
+                chargePercentages[2],
+            0.001f
+        );
+        const float positiveBoundary =
+            chargePercentages[0] / totalChargePercentage;
+        const float neutralBoundary =
+            (chargePercentages[0] + chargePercentages[1]) /
+            totalChargePercentage;
 
         for (std::size_t index = 0; index < bodyCount; ++index)
         {
@@ -489,6 +507,13 @@ int main()
                 sf::Vector2f(vx, 0.f),
                 0.7f
             );
+            const std::size_t chargeMix =
+                index * static_cast<std::size_t>(2246822519U) + 3266489917U;
+            const float chargeSample =
+                static_cast<float>(chargeMix % 10000) / 10000.f;
+            bodies.back().body.charge = chargeSample < positiveBoundary
+                ? 1.f
+                : (chargeSample < neutralBoundary ? 0.f : -1.f);
         }
         restartBodies = bodies;
         pointFields.clear();
@@ -509,26 +534,27 @@ int main()
         accumulator = 0.f;
     };
 
-    const auto rebalancePopulationPercentages = [&](std::size_t changedIndex)
+    const auto rebalancePercentages = [](
+        float percentages[3],
+        std::size_t changedIndex
+    )
     {
         const std::size_t firstOther = (changedIndex + 1) % 3;
         const std::size_t secondOther = (changedIndex + 2) % 3;
-        const float remaining = 100.f - populationPercentages[changedIndex];
+        const float remaining = 100.f - percentages[changedIndex];
         const float previousOtherTotal =
-            populationPercentages[firstOther] +
-            populationPercentages[secondOther];
+            percentages[firstOther] + percentages[secondOther];
 
         if (previousOtherTotal > 0.001f)
         {
-            populationPercentages[firstOther] = remaining *
-                populationPercentages[firstOther] / previousOtherTotal;
+            percentages[firstOther] = remaining *
+                percentages[firstOther] / previousOtherTotal;
         }
         else
         {
-            populationPercentages[firstOther] = remaining * 0.5f;
+            percentages[firstOther] = remaining * 0.5f;
         }
-        populationPercentages[secondOther] =
-            remaining - populationPercentages[firstOther];
+        percentages[secondOther] = remaining - percentages[firstOther];
     };
 
     const auto drawSizeMixtureControls = [&]()
@@ -558,7 +584,7 @@ int main()
                     0.f, 100.f, "%.0f%%"
                 ))
             {
-                rebalancePopulationPercentages(index);
+                rebalancePercentages(populationPercentages, index);
             }
             ImGui::Unindent();
             ImGui::Separator();
@@ -567,6 +593,35 @@ int main()
 
         ImGui::TextDisabled("Total: 100%% (adjusted automatically)");
         if (ImGui::Button("Regenerate mixture"))
+        {
+            loadPopulation(populationCount);
+        }
+        ImGui::TreePop();
+    };
+
+    const auto drawChargeMixtureControls = [&]()
+    {
+        if (!ImGui::TreeNode("Charge mixture"))
+        {
+            return;
+        }
+        constexpr const char* LABELS[3] = {
+            "Positive (+1)", "Neutral (0)", "Negative (-1)"
+        };
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            ImGui::PushID(static_cast<int>(index));
+            if (ImGui::SliderFloat(
+                    LABELS[index], &chargePercentages[index],
+                    0.f, 100.f, "%.0f%%"
+                ))
+            {
+                rebalancePercentages(chargePercentages, index);
+            }
+            ImGui::PopID();
+        }
+        ImGui::TextDisabled("Total: 100%% (adjusted automatically)");
+        if (ImGui::Button("Regenerate charges"))
         {
             loadPopulation(populationCount);
         }
@@ -866,7 +921,8 @@ int main()
                             true,
                             0.f,
                             1.f,
-                            pulseDuration
+                            pulseDuration,
+                            pulseChargeSensitive
                         });
                     }
                     else if (interactionTool == 0)
@@ -908,6 +964,7 @@ int main()
                                 ? 1.f / spawnMass
                                 : 0.f;
                         }
+                        bodies.back().body.charge = spawnCharge;
                     }
                 }
             }
@@ -1047,6 +1104,7 @@ int main()
                 ImGui::TextDisabled("Experimental: dense contacts may be unstable");
             }
             drawSizeMixtureControls();
+            drawChargeMixtureControls();
         }
 
         if (ImGui::CollapsingHeader(
@@ -1136,6 +1194,26 @@ int main()
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Charge separation"))
+            {
+                loadPopulation(300);
+                gravityEnabled = false;
+                windEnabled = false;
+                pointFields = {{
+                    sf::Vector2f(400.f, 300.f),
+                    8000000.f,
+                    0.f,
+                    true,
+                    0.f,
+                    1.f,
+                    -1.f,
+                    true
+                }};
+                selectedPointField = 0;
+                colorByCharge = true;
+                bodyCollisionsEnabled = false;
             }
             if (ImGui::Button("Attractor"))
             {
@@ -1251,6 +1329,9 @@ int main()
                 ImGui::SliderFloat(
                     "Pulse duration", &pulseDuration, 0.1f, 5.f, "%.1f s"
                 );
+                ImGui::Checkbox(
+                    "Pulse responds to charge", &pulseChargeSensitive
+                );
                 ImGui::TextDisabled("Click the scene to apply a temporary field");
             }
         }
@@ -1291,6 +1372,7 @@ int main()
                     selected.radius,
                     selected.restitution
                 );
+                ImGui::Text("Charge: %+.1f", selected.charge);
                 if (ImGui::Button("Delete selected"))
                 {
                     bodies.erase(bodies.begin() +
@@ -1319,11 +1401,13 @@ int main()
                 ImGui::TextDisabled("Mass 0 creates a static body");
             }
             ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
+            ImGui::SliderFloat("Charge", &spawnCharge, -1.f, 1.f, "%+.1f");
             ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
         }
 
         if (ImGui::CollapsingHeader("Debug visualization"))
         {
+            ImGui::Checkbox("Colour by charge", &colorByCharge);
             ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
             ImGui::Checkbox("Contact points", &showContacts);
             ImGui::Checkbox("Collision normals", &showCollisionNormals);
@@ -1370,6 +1454,7 @@ int main()
             {
                 auto& field = pointFields[*selectedPointField];
                 ImGui::Checkbox("Selected field enabled", &field.enabled);
+                ImGui::Checkbox("Responds to charge", &field.chargeSensitive);
                 ImGui::SliderFloat(
                     "Attract / repel", &field.radialStrength,
                     -20000000.f, 20000000.f, "%.1e"
@@ -1503,7 +1588,12 @@ int main()
 
         for (auto& view : bodies)
         {
-            view.shape.setFillColor(sf::Color::White);
+            const sf::Color chargeColor = view.body.charge > 0.1f
+                ? sf::Color(255, 110, 80)
+                : (view.body.charge < -0.1f
+                    ? sf::Color(70, 170, 255)
+                    : sf::Color::White);
+            view.shape.setFillColor(colorByCharge ? chargeColor : sf::Color::White);
             view.sync();
         }
 
@@ -1577,9 +1667,20 @@ int main()
             for (std::size_t index = 0; index < bodies.size(); ++index)
             {
                 sf::CircleShape canvasShape = bodies[index].shape;
-                canvasShape.setFillColor(
-                    canvasPalettes[canvasPalette][index % 5]
-                );
+                if (colorByCharge && bodies[index].body.charge > 0.1f)
+                {
+                    canvasShape.setFillColor(sf::Color(255, 90, 130));
+                }
+                else if (colorByCharge && bodies[index].body.charge < -0.1f)
+                {
+                    canvasShape.setFillColor(sf::Color(70, 210, 255));
+                }
+                else
+                {
+                    canvasShape.setFillColor(
+                        canvasPalettes[canvasPalette][index % 5]
+                    );
+                }
                 canvasTexture.draw(canvasShape, sf::BlendAdd);
             }
             canvasTexture.display();

@@ -52,6 +52,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Multiple independently selectable, draggable, and editable point fields
 - Per-field oscillation controls for pulsing and alternating force patterns
 - Explicit select, force-pulse, body-spawn, and field-editing interaction tools
+- Positive, neutral, and negative particle charges with adjustable mixtures
+- Charge-sensitive permanent fields, temporary pulses, and separation preset
 
 ## Requirements
 

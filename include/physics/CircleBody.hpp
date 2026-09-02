@@ -14,6 +14,7 @@ struct CircleBody
     float radius;
     float inverseMass;
     float restitution;
+    float charge = 0.f;
 
     CircleBody(
         float radius,
