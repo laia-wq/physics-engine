@@ -56,6 +56,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Charge-sensitive permanent fields, temporary pulses, and separation preset
 - Optional particle-to-particle electrostatics with live pair-count profiling
 - Tested like-charge repulsion, opposite-charge attraction, and neutral behavior
+- Damped Hooke-law springs with interactive particle connections
+- Restartable spring-chain preset with visible tension and compression
 
 ## Requirements
 

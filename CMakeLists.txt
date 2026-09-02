@@ -44,6 +44,7 @@ add_library(
     src/CircleBody.cpp
     src/Collision.cpp
     src/Electrostatics.cpp
+    src/Spring.cpp
 )
 target_include_directories(physics-core PUBLIC include)
 target_link_libraries(physics-core PUBLIC SFML::System)
@@ -83,4 +84,9 @@ if(BUILD_TESTING)
     target_link_libraries(electrostatics-tests PRIVATE physics-core)
     enable_project_warnings(electrostatics-tests)
     add_test(NAME particle-electrostatics COMMAND electrostatics-tests)
+
+    add_executable(spring-tests tests/SpringTests.cpp)
+    target_link_libraries(spring-tests PRIVATE physics-core)
+    enable_project_warnings(spring-tests)
+    add_test(NAME damped-spring-forces COMMAND spring-tests)
 endif()

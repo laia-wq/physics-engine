@@ -6,6 +6,7 @@
 #include "physics/BroadPhase.hpp"
 #include "physics/Collision.hpp"
 #include "physics/Electrostatics.hpp"
+#include "physics/Spring.hpp"
 
 #include <algorithm>
 #include <array>
@@ -233,10 +234,14 @@ int main()
 
     std::vector<CircleView> bodies;
     std::vector<CircleView> restartBodies;
+    std::vector<physics::Spring> springs;
+    std::vector<physics::Spring> restartSprings;
 
-    const auto loadClassicScene = [&bodies, &restartBodies]()
+    const auto loadClassicScene = [&]()
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         bodies.emplace_back(
             25.f,
             sf::Vector2f(100.f, 100.f),
@@ -260,9 +265,11 @@ int main()
 
     loadClassicScene();
 
-    const auto loadStressScene = [&bodies, &restartBodies](std::size_t bodyCount)
+    const auto loadStressScene = [&](std::size_t bodyCount)
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         constexpr float radius = 5.f;
         constexpr float spacing = 15.f;
         constexpr std::size_t columns = 50;
@@ -284,9 +291,11 @@ int main()
         restartBodies = bodies;
     };
 
-    const auto loadHeadOnScene = [&bodies, &restartBodies]()
+    const auto loadHeadOnScene = [&]()
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         bodies.emplace_back(
             30.f, sf::Vector2f(180.f, 270.f),
             sf::Vector2f(220.f, 0.f), 1.f
@@ -298,9 +307,11 @@ int main()
         restartBodies = bodies;
     };
 
-    const auto loadZeroGravityScene = [&bodies, &restartBodies]()
+    const auto loadZeroGravityScene = [&]()
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         for (std::size_t index = 0; index < 16; ++index)
         {
             const float x = 80.f + static_cast<float>(index % 4) * 180.f;
@@ -315,9 +326,11 @@ int main()
         restartBodies = bodies;
     };
 
-    const auto loadRainScene = [&bodies, &restartBodies]()
+    const auto loadRainScene = [&]()
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         for (std::size_t index = 0; index < 60; ++index)
         {
             const float x = 15.f + static_cast<float>(index % 20) * 39.f;
@@ -329,9 +342,11 @@ int main()
         restartBodies = bodies;
     };
 
-    const auto loadOrbitScene = [&bodies, &restartBodies]()
+    const auto loadOrbitScene = [&]()
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         constexpr float PI = 3.14159265359f;
         constexpr float fieldStrength = 8000000.f;
         const sf::Vector2f fieldCenter(400.f, 300.f);
@@ -406,6 +421,9 @@ int main()
     bool mutualElectrostaticsEnabled = false;
     float electrostaticStrength = 200000000.f;
     float electrostaticSoftening = 20.f;
+    std::optional<std::size_t> firstSpringBody;
+    float newSpringStiffness = 8000.f;
+    float newSpringDamping = 300.f;
     bool useSpatialGrid = false;
     float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
@@ -464,6 +482,8 @@ int main()
     const auto loadPopulation = [&](std::size_t bodyCount)
     {
         bodies.clear();
+        springs.clear();
+        restartSprings.clear();
         populationCount = bodyCount;
         const float totalPercentage = std::max(
             populationPercentages[0] + populationPercentages[1] +
@@ -538,6 +558,80 @@ int main()
         selectedBody.reset();
         draggedBody.reset();
         accumulator = 0.f;
+    };
+
+    const auto loadSpringChain = [&]()
+    {
+        bodies.clear();
+        springs.clear();
+        constexpr std::size_t BODY_COUNT = 18;
+        constexpr float SPACING = 32.f;
+        constexpr float RADIUS = 9.f;
+        for (std::size_t index = 0; index < BODY_COUNT; ++index)
+        {
+            bodies.emplace_back(
+                RADIUS,
+                sf::Vector2f(100.f + static_cast<float>(index) * SPACING, 100.f),
+                sf::Vector2f(0.f, 0.f),
+                0.5f
+            );
+            if (index > 0)
+            {
+                springs.push_back({
+                    index - 1,
+                    index,
+                    SPACING,
+                    newSpringStiffness,
+                    newSpringDamping
+                });
+            }
+        }
+        bodies.front().body.inverseMass = 0.f;
+        restartBodies = bodies;
+        restartSprings = springs;
+        selectedBody.reset();
+        draggedBody.reset();
+        firstSpringBody.reset();
+        gravityEnabled = true;
+        gravityField[0] = 0.f;
+        gravityField[1] = GRAVITY;
+        windEnabled = false;
+        pointFields.clear();
+        selectedPointField.reset();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
+    const auto deleteBody = [&](std::size_t bodyIndex)
+    {
+        springs.erase(
+            std::remove_if(
+                springs.begin(), springs.end(),
+                [bodyIndex](const physics::Spring& spring)
+                {
+                    return spring.first == bodyIndex ||
+                        spring.second == bodyIndex;
+                }
+            ),
+            springs.end()
+        );
+        for (auto& spring : springs)
+        {
+            if (spring.first > bodyIndex)
+            {
+                --spring.first;
+            }
+            if (spring.second > bodyIndex)
+            {
+                --spring.second;
+            }
+        }
+        bodies.erase(bodies.begin() + static_cast<std::ptrdiff_t>(bodyIndex));
+        selectedBody.reset();
+        draggedBody.reset();
+        firstSpringBody.reset();
     };
 
     const auto rebalancePercentages = [](
@@ -674,6 +768,20 @@ int main()
                         electrostaticSoftening
                     );
                 }
+            }
+        }
+
+        for (const auto& spring : springs)
+        {
+            if (spring.first < bodies.size() && spring.second < bodies.size())
+            {
+                physics::applySpringForce(
+                    bodies[spring.first].body,
+                    bodies[spring.second].body,
+                    spring.restLength,
+                    spring.stiffness,
+                    spring.damping
+                );
             }
         }
 
@@ -835,6 +943,7 @@ int main()
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::R)
                 {
                     bodies = restartBodies;
+                    springs = restartSprings;
                     pointFields.erase(
                         std::remove_if(
                             pointFields.begin(), pointFields.end(),
@@ -873,10 +982,7 @@ int main()
                     selectedBody && *selectedBody < bodies.size()
                 )
                 {
-                    bodies.erase(bodies.begin() +
-                        static_cast<std::ptrdiff_t>(*selectedBody));
-                    selectedBody.reset();
-                    draggedBody.reset();
+                    deleteBody(*selectedBody);
                 }
             }
 
@@ -1079,6 +1185,7 @@ int main()
         if (ImGui::Button("Restart"))
         {
             bodies = restartBodies;
+            springs = restartSprings;
             pointFields.erase(
                 std::remove_if(
                     pointFields.begin(), pointFields.end(),
@@ -1103,6 +1210,7 @@ int main()
         if (ImGui::Button("Clear"))
         {
             bodies.clear();
+            springs.clear();
             selectedBody.reset();
             draggedBody.reset();
         }
@@ -1294,6 +1402,11 @@ int main()
                 colorByCharge = true;
                 bodyCollisionsEnabled = false;
             }
+            ImGui::SameLine();
+            if (ImGui::Button("Spring chain"))
+            {
+                loadSpringChain();
+            }
             if (ImGui::Button("Attractor"))
             {
                 loadStressScene(300);
@@ -1458,10 +1571,7 @@ int main()
                 ImGui::Text("Charge: %+.1f", selected.charge);
                 if (ImGui::Button("Delete selected"))
                 {
-                    bodies.erase(bodies.begin() +
-                        static_cast<std::ptrdiff_t>(*selectedBody));
-                    selectedBody.reset();
-                    draggedBody.reset();
+                    deleteBody(*selectedBody);
                 }
             }
             else
@@ -1486,6 +1596,80 @@ int main()
             ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
             ImGui::SliderFloat("Charge", &spawnCharge, -1.f, 1.f, "%+.1f");
             ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
+        }
+
+        if (ImGui::CollapsingHeader(
+                "Springs and connections",
+                ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            ImGui::Text("Connections: %zu", springs.size());
+            ImGui::SliderFloat(
+                "New spring stiffness", &newSpringStiffness,
+                500.f, 20000.f, "%.0f"
+            );
+            ImGui::SliderFloat(
+                "New spring damping", &newSpringDamping,
+                0.f, 1000.f, "%.0f"
+            );
+
+            if (!firstSpringBody)
+            {
+                ImGui::BeginDisabled(
+                    !selectedBody || *selectedBody >= bodies.size()
+                );
+                if (ImGui::Button("Use selected as first endpoint"))
+                {
+                    firstSpringBody = selectedBody;
+                }
+                ImGui::EndDisabled();
+            }
+            else
+            {
+                ImGui::Text("First endpoint: body %zu", *firstSpringBody + 1);
+                const bool canConnect = selectedBody &&
+                    *selectedBody < bodies.size() &&
+                    *selectedBody != *firstSpringBody;
+                ImGui::BeginDisabled(!canConnect);
+                if (ImGui::Button("Connect first to selected"))
+                {
+                    const sf::Vector2f difference =
+                        bodies[*selectedBody].body.center() -
+                        bodies[*firstSpringBody].body.center();
+                    const float restLength = std::sqrt(
+                        difference.x * difference.x +
+                        difference.y * difference.y
+                    );
+                    springs.push_back({
+                        *firstSpringBody,
+                        *selectedBody,
+                        restLength,
+                        newSpringStiffness,
+                        newSpringDamping
+                    });
+                    restartBodies = bodies;
+                    restartSprings = springs;
+                    firstSpringBody.reset();
+                }
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel connection"))
+                {
+                    firstSpringBody.reset();
+                }
+            }
+
+            ImGui::BeginDisabled(springs.empty());
+            if (ImGui::Button("Remove all springs"))
+            {
+                springs.clear();
+                restartSprings.clear();
+                firstSpringBody.reset();
+            }
+            ImGui::EndDisabled();
+            ImGui::TextDisabled(
+                "Select body A, set it, then select body B and connect"
+            );
         }
 
         if (ImGui::CollapsingHeader("Debug visualization"))
@@ -1702,6 +1886,31 @@ int main()
             bodies[*selectedBody].shape.setFillColor(sf::Color(255, 215, 0));
         }
 
+        const auto drawSpringConnections = [&]()
+        {
+            for (const auto& spring : springs)
+            {
+                if (spring.first >= bodies.size() ||
+                    spring.second >= bodies.size())
+                {
+                    continue;
+                }
+                const sf::Vector2f start = bodies[spring.first].body.center();
+                const sf::Vector2f end = bodies[spring.second].body.center();
+                const sf::Vector2f difference = end - start;
+                const float length = std::sqrt(
+                    difference.x * difference.x + difference.y * difference.y
+                );
+                const float extension = length - spring.restLength;
+                const sf::Color color = extension > 2.f
+                    ? sf::Color(255, 120, 100)
+                    : (extension < -2.f
+                        ? sf::Color(90, 180, 255)
+                        : sf::Color(210, 220, 235));
+                drawLine(window, start, end, color);
+            }
+        };
+
         const auto drawPointFieldMarkers = [&]()
         {
             for (std::size_t index = 0; index < pointFields.size(); ++index)
@@ -1771,6 +1980,7 @@ int main()
             window.clear(background);
             const sf::Sprite canvasSprite(canvasTexture.getTexture());
             window.draw(canvasSprite);
+            drawSpringConnections();
             if (selectedBody && *selectedBody < bodies.size())
             {
                 const auto& selected = bodies[*selectedBody].body;
@@ -1815,6 +2025,8 @@ int main()
                 );
             }
         }
+
+        drawSpringConnections();
 
         for (const auto& view : bodies)
         {

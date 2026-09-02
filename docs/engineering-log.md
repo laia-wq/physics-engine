@@ -585,3 +585,25 @@ Long-range electrostatics currently evaluates every particle pair, producing qua
 ### Verification
 
 A dedicated automated test checks like-charge repulsion, opposite-charge attraction, and neutral-pair skipping.
+
+## 2026-09-02 — Damped springs and particle connections
+
+### Goal
+
+Introduce connected particle systems without requiring polygonal rigid bodies.
+
+### Implementation
+
+- A reusable physics-core spring applies Hooke restoring force plus velocity damping along the connection axis.
+- Stretched springs pull endpoints together, compressed springs push them apart, and damping opposes relative motion.
+- Springs store body indices, rest length, stiffness, and damping.
+- The simulation accumulates spring acceleration before integrating any body, preserving consistent step ordering.
+- Users can select one body, mark it as the first endpoint, select another body, and connect them at their current separation.
+- Deleting a body removes attached springs and safely renumbers remaining connection indices.
+- Scene loading clears incompatible connections, while Restart restores the spring network snapshot.
+- Connections render pale near equilibrium, warm under tension, and blue under compression in both Laboratory and Canvas views.
+- The Spring chain preset creates 18 connected particles with one fixed anchor under gravity.
+
+### Verification
+
+A dedicated automated suite verifies stretched-spring attraction, compressed-spring repulsion, damping against separation, and safe handling of coincident endpoints.
