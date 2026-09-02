@@ -561,3 +561,27 @@ Give particles an independent signed property so one field can produce different
 ### Verification
 
 An automated body test confirms that particles begin neutral and that changing charge does not alter inverse mass. Existing integration, collision, and broad-phase tests remain part of the regression suite.
+
+## 2026-09-02 — Mutual electrostatic interactions
+
+### Goal
+
+Extend charge beyond external fields so charged particles can exert equal-and-opposite forces on one another.
+
+### Implementation
+
+- A physics-core electrostatic pair function applies a softened inverse-square force.
+- Like charges repel, opposite charges attract, and pairs containing a neutral particle are skipped.
+- Force is equal and opposite, while resulting acceleration differs according to each particle's inverse mass.
+- The simulation calculates all base accelerations, accumulates every electrostatic pair, and only then integrates bodies. This avoids order-dependent partially updated motion.
+- Strength and softening are adjustable, and the panel reports the number of long-range pair checks.
+- A Mutual charges preset starts 150 mixed-charge particles without gravity, wind, external fields, or collisions.
+- Unrelated presets explicitly disable mutual electrostatics to prevent state leakage.
+
+### Performance note
+
+Long-range electrostatics currently evaluates every particle pair, producing quadratic growth. The UI warns above 300 bodies. This creates a measured baseline for a later Barnes-Hut or cutoff-based approximation rather than disguising the cost.
+
+### Verification
+
+A dedicated automated test checks like-charge repulsion, opposite-charge attraction, and neutral-pair skipping.

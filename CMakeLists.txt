@@ -43,6 +43,7 @@ add_library(
     src/BroadPhase.cpp
     src/CircleBody.cpp
     src/Collision.cpp
+    src/Electrostatics.cpp
 )
 target_include_directories(physics-core PUBLIC include)
 target_link_libraries(physics-core PUBLIC SFML::System)
@@ -77,4 +78,9 @@ if(BUILD_TESTING)
     target_link_libraries(broad-phase-tests PRIVATE physics-core)
     enable_project_warnings(broad-phase-tests)
     add_test(NAME uniform-grid-broad-phase COMMAND broad-phase-tests)
+
+    add_executable(electrostatics-tests tests/ElectrostaticsTests.cpp)
+    target_link_libraries(electrostatics-tests PRIVATE physics-core)
+    enable_project_warnings(electrostatics-tests)
+    add_test(NAME particle-electrostatics COMMAND electrostatics-tests)
 endif()

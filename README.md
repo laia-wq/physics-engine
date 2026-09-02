@@ -54,6 +54,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Explicit select, force-pulse, body-spawn, and field-editing interaction tools
 - Positive, neutral, and negative particle charges with adjustable mixtures
 - Charge-sensitive permanent fields, temporary pulses, and separation preset
+- Optional particle-to-particle electrostatics with live pair-count profiling
+- Tested like-charge repulsion, opposite-charge attraction, and neutral behavior
 
 ## Requirements
 

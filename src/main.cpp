@@ -5,6 +5,7 @@
 
 #include "physics/BroadPhase.hpp"
 #include "physics/Collision.hpp"
+#include "physics/Electrostatics.hpp"
 
 #include <algorithm>
 #include <array>
@@ -402,12 +403,16 @@ int main()
     bool showCollisionNormals = false;
     bool showSpatialGrid = false;
     bool bodyCollisionsEnabled = true;
+    bool mutualElectrostaticsEnabled = false;
+    float electrostaticStrength = 200000000.f;
+    float electrostaticSoftening = 20.f;
     bool useSpatialGrid = false;
     float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
     std::size_t allPairsCount = 0;
     std::size_t candidatePairChecks = 0;
     std::size_t actualCollisions = 0;
+    std::size_t electrostaticPairChecks = 0;
     double physicsStepMilliseconds = 0.0;
 
     const auto pointFieldAcceleration = [&](const physics::CircleBody& body)
@@ -529,6 +534,7 @@ int main()
         useSpatialGrid = bodyCount >= 300;
         gridCellSize = bodyCount >= 600 ? 20.f : 50.f;
         bodyCollisionsEnabled = bodyCount < 600;
+        mutualElectrostaticsEnabled = false;
         selectedBody.reset();
         draggedBody.reset();
         accumulator = 0.f;
@@ -634,6 +640,7 @@ int main()
         const auto stepStart = std::chrono::steady_clock::now();
         candidatePairChecks = 0;
         actualCollisions = 0;
+        electrostaticPairChecks = 0;
         allPairsCount = bodies.size() * (bodies.size() - (bodies.empty() ? 0 : 1)) / 2;
 
         for (std::size_t index = 0; index < bodies.size(); ++index)
@@ -650,6 +657,32 @@ int main()
                 pointFieldAcceleration(bodies[index].body);
             bodies[index].body.acceleration +=
                 windAcceleration(bodies[index].body);
+        }
+
+        if (mutualElectrostaticsEnabled)
+        {
+            for (std::size_t first = 0; first < bodies.size(); ++first)
+            {
+                for (std::size_t second = first + 1;
+                     second < bodies.size(); ++second)
+                {
+                    ++electrostaticPairChecks;
+                    physics::applyElectrostaticPair(
+                        bodies[first].body,
+                        bodies[second].body,
+                        electrostaticStrength,
+                        electrostaticSoftening
+                    );
+                }
+            }
+        }
+
+        for (std::size_t index = 0; index < bodies.size(); ++index)
+        {
+            if (draggedBody && index == *draggedBody)
+            {
+                continue;
+            }
             bodies[index].body.integrate(FIXED_TIME_STEP);
             bodies[index].body.resolveBounds(
                 windowWidth,
@@ -1139,11 +1172,42 @@ int main()
             ImGui::TextDisabled("Small/light bodies respond more strongly");
         }
 
+        if (ImGui::CollapsingHeader("Mutual electrostatics"))
+        {
+            ImGui::Checkbox(
+                "Particles affect each other",
+                &mutualElectrostaticsEnabled
+            );
+            ImGui::SliderFloat(
+                "Electric strength",
+                &electrostaticStrength,
+                10000000.f,
+                1000000000.f,
+                "%.1e",
+                ImGuiSliderFlags_Logarithmic
+            );
+            ImGui::SliderFloat(
+                "Electric softening",
+                &electrostaticSoftening,
+                5.f,
+                80.f,
+                "%.0f px"
+            );
+            ImGui::Text("Pair checks: %zu", electrostaticPairChecks);
+            if (mutualElectrostaticsEnabled && bodies.size() > 300)
+            {
+                ImGui::TextDisabled(
+                    "Long-range all-pairs forces may be slow above 300 bodies"
+                );
+            }
+        }
+
         if (ImGui::CollapsingHeader("Preset scenes"))
         {
             if (ImGui::Button("Classic"))
             {
                 loadClassicScene();
+                mutualElectrostaticsEnabled = false;
                 gravityField[0] = 0.f;
                 gravityField[1] = GRAVITY;
                 windForce[0] = 0.f;
@@ -1160,6 +1224,7 @@ int main()
             if (ImGui::Button("Head-on"))
             {
                 loadHeadOnScene();
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields.clear();
@@ -1172,6 +1237,7 @@ int main()
             if (ImGui::Button("Zero-G drift"))
             {
                 loadZeroGravityScene();
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields.clear();
@@ -1183,6 +1249,7 @@ int main()
             if (ImGui::Button("Particle rain"))
             {
                 loadRainScene();
+                mutualElectrostaticsEnabled = false;
                 gravityField[0] = 0.f;
                 gravityField[1] = 700.f;
                 windForce[0] = 0.f;
@@ -1215,9 +1282,22 @@ int main()
                 colorByCharge = true;
                 bodyCollisionsEnabled = false;
             }
+            ImGui::SameLine();
+            if (ImGui::Button("Mutual charges"))
+            {
+                loadPopulation(150);
+                gravityEnabled = false;
+                windEnabled = false;
+                pointFields.clear();
+                selectedPointField.reset();
+                mutualElectrostaticsEnabled = true;
+                colorByCharge = true;
+                bodyCollisionsEnabled = false;
+            }
             if (ImGui::Button("Attractor"))
             {
                 loadStressScene(300);
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields = {{sf::Vector2f(400.f, 300.f), 8000000.f, 0.f, true}};
@@ -1232,6 +1312,7 @@ int main()
             if (ImGui::Button("Repulsor"))
             {
                 loadStressScene(300);
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields = {{sf::Vector2f(400.f, 300.f), -10000000.f, 0.f, true}};
@@ -1246,6 +1327,7 @@ int main()
             if (ImGui::Button("Vortex##preset"))
             {
                 loadStressScene(300);
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields = {{sf::Vector2f(400.f, 300.f), 4000000.f, 10000000.f, true}};
@@ -1259,6 +1341,7 @@ int main()
             if (ImGui::Button("Orbital rings"))
             {
                 loadOrbitScene();
+                mutualElectrostaticsEnabled = false;
                 gravityEnabled = false;
                 windEnabled = false;
                 pointFields = {{sf::Vector2f(400.f, 300.f), 8000000.f, 0.f, true}};
