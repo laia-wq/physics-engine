@@ -517,3 +517,26 @@ Laboratory and Canvas now use one shared physics-control panel. Switching views 
 Restart semantics now use a saved body snapshot from the most recently loaded scene or generated population. `R` and the Restart button restore those starting positions and velocities while preserving the current gravity, wind, point-field, and material controls. The Classic preset remains the explicit way to return to the original three-ball demonstration.
 
 The shared panel exposed an ImGui identifier collision between the Vortex preset button and Vortex field-strength slider. Their visible labels remain unchanged, but each now has a distinct hidden identifier so ImGui can track them independently.
+
+## 2026-08-29 — Multiple and oscillating point fields
+
+### Goal
+
+Replace the single global point field with a reusable collection so several attractors, repulsors, and vortices can interact in one experiment.
+
+### Implementation
+
+- Each field stores its own position, radial strength, vortex strength, enabled state, oscillation amount, and frequency.
+- Every body receives the vector sum of all enabled field accelerations.
+- Coloured field rings can be selected and dragged in Laboratory or Canvas view.
+- The shared panel can add, select, edit, disable, and delete individual fields.
+- Cyan rings represent radial attraction, magenta rings represent repulsion, and yellow rings indicate vortex behavior. The selected ring is thicker.
+- Oscillation scales a field sinusoidally. Amounts below 1 pulse without reversing; amounts above 1 can alternate between attraction and repulsion.
+
+### Engineering significance
+
+The field system now demonstrates superposition and removes a single-instance design limitation. Per-field state makes later field types, serialization, and deterministic replay possible without adding another set of global variables for every feature.
+
+### Interaction tools and temporary forces
+
+Left-click behavior is now explicit rather than contextually spawning bodies. Select/throw prioritizes body inspection and does nothing on empty space; Spawn body creates particles intentionally; Move fields edits permanent field markers; and Force pulse creates a short-lived field at the click position. Pulse radial strength, vortex strength, and lifetime are adjustable, with attract, repel, and vortex shortcuts. Temporary fields use the same force-superposition calculation as permanent fields and are removed automatically or when the experiment restarts.

@@ -49,6 +49,9 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Independent radius and mass controls for individually spawned bodies
 - One shared physics panel in Laboratory and Canvas views; press `C` to hide it
 - Restart the currently loaded experiment with `R` without changing its fields
+- Multiple independently selectable, draggable, and editable point fields
+- Per-field oscillation controls for pulsing and alternating force patterns
+- Explicit select, force-pulse, body-spawn, and field-editing interaction tools
 
 ## Requirements
 

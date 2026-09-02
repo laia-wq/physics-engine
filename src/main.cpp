@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cmath>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace
@@ -31,6 +32,17 @@ struct DebugContact
 {
     sf::Vector2f point;
     sf::Vector2f normal;
+};
+
+struct PointField
+{
+    sf::Vector2f position;
+    float radialStrength;
+    float vortexStrength;
+    bool enabled;
+    float oscillationAmount = 0.f;
+    float oscillationFrequency = 1.f;
+    float remainingLifetime = -1.f;
 };
 
 struct CircleView
@@ -344,6 +356,7 @@ int main()
 
     sf::Clock clock;
     float accumulator = 0.f;
+    float simulationTime = 0.f;
     bool paused = false;
     bool stepRequested = false;
     std::optional<std::size_t> selectedBody;
@@ -363,10 +376,12 @@ int main()
     bool placingPointField = false;
     bool draggingPointField = false;
     std::size_t canvasPalette = 0;
-    bool pointFieldEnabled = false;
-    sf::Vector2f pointFieldPosition(400.f, 300.f);
-    float radialFieldStrength = 0.f;
-    float vortexFieldStrength = 0.f;
+    std::vector<PointField> pointFields;
+    std::optional<std::size_t> selectedPointField;
+    int interactionTool = 0;
+    float pulseRadialStrength = 8000000.f;
+    float pulseVortexStrength = 0.f;
+    float pulseDuration = 1.f;
     constexpr float FIELD_SOFTENING = 35.f;
     float floorFriction = 0.98f;
     float spawnRadius = 22.f;
@@ -392,20 +407,31 @@ int main()
 
     const auto pointFieldAcceleration = [&](const physics::CircleBody& body)
     {
-        if (!pointFieldEnabled)
+        sf::Vector2f totalAcceleration(0.f, 0.f);
+        for (const auto& field : pointFields)
         {
-            return sf::Vector2f(0.f, 0.f);
-        }
+            if (!field.enabled)
+            {
+                continue;
+            }
 
-        const sf::Vector2f difference = pointFieldPosition - body.center();
-        const float softenedDistanceSquared =
-            difference.x * difference.x + difference.y * difference.y +
-            FIELD_SOFTENING * FIELD_SOFTENING;
-        const sf::Vector2f direction =
-            difference / std::sqrt(softenedDistanceSquared);
-        const sf::Vector2f tangent(-direction.y, direction.x);
-        return direction * (radialFieldStrength / softenedDistanceSquared) +
-            tangent * (vortexFieldStrength / softenedDistanceSquared);
+            const sf::Vector2f difference = field.position - body.center();
+            const float softenedDistanceSquared =
+                difference.x * difference.x + difference.y * difference.y +
+                FIELD_SOFTENING * FIELD_SOFTENING;
+            const sf::Vector2f direction =
+                difference / std::sqrt(softenedDistanceSquared);
+            const sf::Vector2f tangent(-direction.y, direction.x);
+            constexpr float PI = 3.14159265359f;
+            const float oscillation = 1.f + field.oscillationAmount *
+                std::sin(2.f * PI * field.oscillationFrequency * simulationTime);
+            totalAcceleration +=
+                direction * (field.radialStrength * oscillation /
+                    softenedDistanceSquared) +
+                tangent * (field.vortexStrength * oscillation /
+                    softenedDistanceSquared);
+        }
+        return totalAcceleration;
     };
 
     const auto windAcceleration = [&](const physics::CircleBody& body)
@@ -465,11 +491,10 @@ int main()
             );
         }
         restartBodies = bodies;
-        pointFieldEnabled = false;
+        pointFields.clear();
+        selectedPointField.reset();
         placingPointField = false;
         draggingPointField = false;
-        radialFieldStrength = 0.f;
-        vortexFieldStrength = 0.f;
         gravityEnabled = true;
         gravityField[0] = 0.f;
         gravityField[1] = GRAVITY;
@@ -550,6 +575,7 @@ int main()
 
     const auto simulateStep = [&]()
     {
+        simulationTime += FIXED_TIME_STEP;
         const auto stepStart = std::chrono::steady_clock::now();
         candidatePairChecks = 0;
         actualCollisions = 0;
@@ -634,6 +660,34 @@ int main()
             }
         }
 
+        for (std::size_t index = 0; index < pointFields.size();)
+        {
+            auto& field = pointFields[index];
+            if (field.remainingLifetime >= 0.f)
+            {
+                field.remainingLifetime -= FIXED_TIME_STEP;
+            }
+            if (field.remainingLifetime < 0.f &&
+                field.remainingLifetime > -0.5f)
+            {
+                pointFields.erase(pointFields.begin() +
+                    static_cast<std::ptrdiff_t>(index));
+                if (selectedPointField)
+                {
+                    if (*selectedPointField == index)
+                    {
+                        selectedPointField.reset();
+                    }
+                    else if (*selectedPointField > index)
+                    {
+                        --(*selectedPointField);
+                    }
+                }
+                continue;
+            }
+            ++index;
+        }
+
         const auto stepEnd = std::chrono::steady_clock::now();
         physicsStepMilliseconds =
             std::chrono::duration<double, std::milli>(stepEnd - stepStart)
@@ -693,12 +747,24 @@ int main()
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::R)
                 {
                     bodies = restartBodies;
+                    pointFields.erase(
+                        std::remove_if(
+                            pointFields.begin(), pointFields.end(),
+                            [](const PointField& field)
+                            {
+                                return field.remainingLifetime >= 0.f;
+                            }
+                        ),
+                        pointFields.end()
+                    );
+                    selectedPointField.reset();
                     placingPointField = false;
                     draggingPointField = false;
                     selectedBody.reset();
                     draggedBody.reset();
                     paused = false;
                     accumulator = 0.f;
+                    simulationTime = 0.f;
                     canvasTexture.clear(canvasBackgrounds[canvasPalette]);
                     canvasTexture.display();
                 }
@@ -731,19 +797,27 @@ int main()
             {
                 const sf::Vector2f pressedPosition =
                     toWorldPosition(mousePressed->position);
-                const sf::Vector2f distanceFromField =
-                    pressedPosition - pointFieldPosition;
-                const float distanceFromFieldSquared =
-                    distanceFromField.x * distanceFromField.x +
-                    distanceFromField.y * distanceFromField.y;
+                std::optional<std::size_t> hitField;
+                for (std::size_t index = pointFields.size(); index > 0; --index)
+                {
+                    const sf::Vector2f distance =
+                        pressedPosition - pointFields[index - 1].position;
+                    if (distance.x * distance.x + distance.y * distance.y <=
+                        40.f * 40.f)
+                    {
+                        hitField = index - 1;
+                        break;
+                    }
+                }
 
                 if (
-                    pointFieldEnabled &&
+                    interactionTool == 3 &&
+                    hitField &&
                     mousePressed->button == sf::Mouse::Button::Left &&
-                    distanceFromFieldSquared <= 40.f * 40.f &&
                     !ImGui::GetIO().WantCaptureMouse
                 )
                 {
+                    selectedPointField = hitField;
                     draggingPointField = true;
                 }
                 else if (
@@ -752,9 +826,8 @@ int main()
                     !ImGui::GetIO().WantCaptureMouse
                 )
                 {
-                    pointFieldPosition =
-                        toWorldPosition(mousePressed->position);
-                    pointFieldEnabled = true;
+                    pointFields.push_back({pressedPosition, 8000000.f, 0.f, true});
+                    selectedPointField = pointFields.size() - 1;
                     placingPointField = false;
                     draggingPointField = true;
                 }
@@ -764,9 +837,15 @@ int main()
                     !ImGui::GetIO().WantCaptureMouse
                 )
                 {
-                    pointFieldPosition =
-                        toWorldPosition(mousePressed->position);
-                    pointFieldEnabled = true;
+                    if (selectedPointField && *selectedPointField < pointFields.size())
+                    {
+                        pointFields[*selectedPointField].position = pressedPosition;
+                    }
+                    else
+                    {
+                        pointFields.push_back({pressedPosition, 8000000.f, 0.f, true});
+                        selectedPointField = pointFields.size() - 1;
+                    }
                     placingPointField = false;
                 }
                 else if (mousePressed->button == sf::Mouse::Button::Left)
@@ -778,20 +857,34 @@ int main()
 
                     const sf::Vector2f mousePosition =
                         toWorldPosition(mousePressed->position);
-                    selectedBody = findBodyAt(bodies, mousePosition);
-
-                    if (selectedBody)
+                    if (interactionTool == 1)
                     {
-                        draggedBody = selectedBody;
-                        auto& selected = bodies[*selectedBody].body;
-                        selectedInverseMass = selected.inverseMass;
-                        selected.inverseMass = 0.f;
-                        selected.velocity = sf::Vector2f(0.f, 0.f);
-                        dragOffset = mousePosition - selected.position;
-                        lastMousePosition = mousePosition;
-                        throwVelocity = sf::Vector2f(0.f, 0.f);
+                        pointFields.push_back({
+                            mousePosition,
+                            pulseRadialStrength,
+                            pulseVortexStrength,
+                            true,
+                            0.f,
+                            1.f,
+                            pulseDuration
+                        });
                     }
-                    else
+                    else if (interactionTool == 0)
+                    {
+                        selectedBody = findBodyAt(bodies, mousePosition);
+                        if (selectedBody)
+                        {
+                            draggedBody = selectedBody;
+                            auto& selected = bodies[*selectedBody].body;
+                            selectedInverseMass = selected.inverseMass;
+                            selected.inverseMass = 0.f;
+                            selected.velocity = sf::Vector2f(0.f, 0.f);
+                            dragOffset = mousePosition - selected.position;
+                            lastMousePosition = mousePosition;
+                            throwVelocity = sf::Vector2f(0.f, 0.f);
+                        }
+                    }
+                    else if (interactionTool == 2)
                     {
                         const float x = std::clamp(
                             mousePosition.x - spawnRadius,
@@ -896,11 +989,23 @@ int main()
         if (ImGui::Button("Restart"))
         {
             bodies = restartBodies;
+            pointFields.erase(
+                std::remove_if(
+                    pointFields.begin(), pointFields.end(),
+                    [](const PointField& field)
+                    {
+                        return field.remainingLifetime >= 0.f;
+                    }
+                ),
+                pointFields.end()
+            );
+            selectedPointField.reset();
             placingPointField = false;
             draggingPointField = false;
             selectedBody.reset();
             draggedBody.reset();
             accumulator = 0.f;
+            simulationTime = 0.f;
             canvasTexture.clear(canvasBackgrounds[canvasPalette]);
             canvasTexture.display();
         }
@@ -987,7 +1092,8 @@ int main()
                 windForce[1] = 0.f;
                 gravityEnabled = true;
                 windEnabled = true;
-                pointFieldEnabled = false;
+                pointFields.clear();
+                selectedPointField.reset();
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
@@ -998,7 +1104,8 @@ int main()
                 loadHeadOnScene();
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = false;
+                pointFields.clear();
+                selectedPointField.reset();
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
@@ -1009,7 +1116,8 @@ int main()
                 loadZeroGravityScene();
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = false;
+                pointFields.clear();
+                selectedPointField.reset();
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
@@ -1023,7 +1131,8 @@ int main()
                 windForce[1] = 0.f;
                 gravityEnabled = true;
                 windEnabled = true;
-                pointFieldEnabled = false;
+                pointFields.clear();
+                selectedPointField.reset();
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
@@ -1033,10 +1142,8 @@ int main()
                 loadStressScene(300);
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = true;
-                pointFieldPosition = sf::Vector2f(400.f, 300.f);
-                radialFieldStrength = 8000000.f;
-                vortexFieldStrength = 0.f;
+                pointFields = {{sf::Vector2f(400.f, 300.f), 8000000.f, 0.f, true}};
+                selectedPointField = 0;
                 useSpatialGrid = true;
                 gridCellSize = 50.f;
                 bodyCollisionsEnabled = true;
@@ -1049,10 +1156,8 @@ int main()
                 loadStressScene(300);
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = true;
-                pointFieldPosition = sf::Vector2f(400.f, 300.f);
-                radialFieldStrength = -10000000.f;
-                vortexFieldStrength = 0.f;
+                pointFields = {{sf::Vector2f(400.f, 300.f), -10000000.f, 0.f, true}};
+                selectedPointField = 0;
                 useSpatialGrid = true;
                 gridCellSize = 50.f;
                 bodyCollisionsEnabled = true;
@@ -1065,10 +1170,8 @@ int main()
                 loadStressScene(300);
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = true;
-                pointFieldPosition = sf::Vector2f(400.f, 300.f);
-                radialFieldStrength = 4000000.f;
-                vortexFieldStrength = 10000000.f;
+                pointFields = {{sf::Vector2f(400.f, 300.f), 4000000.f, 10000000.f, true}};
+                selectedPointField = 0;
                 useSpatialGrid = true;
                 gridCellSize = 50.f;
                 bodyCollisionsEnabled = true;
@@ -1080,15 +1183,75 @@ int main()
                 loadOrbitScene();
                 gravityEnabled = false;
                 windEnabled = false;
-                pointFieldEnabled = true;
-                pointFieldPosition = sf::Vector2f(400.f, 300.f);
-                radialFieldStrength = 8000000.f;
-                vortexFieldStrength = 0.f;
+                pointFields = {{sf::Vector2f(400.f, 300.f), 8000000.f, 0.f, true}};
+                selectedPointField = 0;
                 useSpatialGrid = true;
                 gridCellSize = 50.f;
                 bodyCollisionsEnabled = true;
                 selectedBody.reset();
                 draggedBody.reset();
+            }
+        }
+
+        if (ImGui::CollapsingHeader(
+                "Interaction tool",
+                ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            if (ImGui::RadioButton("Select / throw", &interactionTool, 0))
+            {
+                placingPointField = false;
+                draggingPointField = false;
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Force pulse", &interactionTool, 1))
+            {
+                placingPointField = false;
+                draggingPointField = false;
+            }
+            if (ImGui::RadioButton("Spawn body", &interactionTool, 2))
+            {
+                placingPointField = false;
+                draggingPointField = false;
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Move fields", &interactionTool, 3))
+            {
+                placingPointField = false;
+                draggingPointField = false;
+            }
+
+            if (interactionTool == 1)
+            {
+                if (ImGui::SmallButton("Attract pulse"))
+                {
+                    pulseRadialStrength = 8000000.f;
+                    pulseVortexStrength = 0.f;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Repel pulse"))
+                {
+                    pulseRadialStrength = -8000000.f;
+                    pulseVortexStrength = 0.f;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Vortex pulse"))
+                {
+                    pulseRadialStrength = 2000000.f;
+                    pulseVortexStrength = 10000000.f;
+                }
+                ImGui::SliderFloat(
+                    "Pulse attract / repel", &pulseRadialStrength,
+                    -20000000.f, 20000000.f, "%.1e"
+                );
+                ImGui::SliderFloat(
+                    "Pulse vortex", &pulseVortexStrength,
+                    -20000000.f, 20000000.f, "%.1e"
+                );
+                ImGui::SliderFloat(
+                    "Pulse duration", &pulseDuration, 0.1f, 5.f, "%.1f s"
+                );
+                ImGui::TextDisabled("Click the scene to apply a temporary field");
             }
         }
 
@@ -1171,29 +1334,68 @@ int main()
 
         if (ImGui::CollapsingHeader("Point field controls"))
         {
-            ImGui::Checkbox("Point field enabled", &pointFieldEnabled);
+            ImGui::Text("Fields: %zu", pointFields.size());
             if (ImGui::Button(
-                    placingPointField ? "Drag in the scene..." : "Move/drag field point"
+                    placingPointField ? "Click and drag in scene..." : "Add attractor"
                 ))
             {
                 placingPointField = true;
             }
-            ImGui::BeginDisabled(!pointFieldEnabled);
-            ImGui::SliderFloat(
-                "Attract / repel",
-                &radialFieldStrength,
-                -20000000.f,
-                20000000.f,
-                "%.1e"
-            );
-            ImGui::SliderFloat(
-                "Vortex##field-strength",
-                &vortexFieldStrength,
-                -20000000.f,
-                20000000.f,
-                "%.1e"
-            );
-            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button("Add repulsor"))
+            {
+                pointFields.push_back({{400.f, 300.f}, -8000000.f, 0.f, true});
+                selectedPointField = pointFields.size() - 1;
+            }
+            if (ImGui::Button("Add vortex"))
+            {
+                pointFields.push_back({{400.f, 300.f}, 3000000.f, 10000000.f, true});
+                selectedPointField = pointFields.size() - 1;
+            }
+            for (std::size_t index = 0; index < pointFields.size(); ++index)
+            {
+                if (pointFields[index].remainingLifetime >= 0.f)
+                {
+                    continue;
+                }
+                ImGui::PushID(static_cast<int>(index));
+                const std::string label = "Field " + std::to_string(index + 1);
+                if (ImGui::Selectable(label.c_str(), selectedPointField == index))
+                {
+                    selectedPointField = index;
+                }
+                ImGui::PopID();
+            }
+            if (selectedPointField && *selectedPointField < pointFields.size())
+            {
+                auto& field = pointFields[*selectedPointField];
+                ImGui::Checkbox("Selected field enabled", &field.enabled);
+                ImGui::SliderFloat(
+                    "Attract / repel", &field.radialStrength,
+                    -20000000.f, 20000000.f, "%.1e"
+                );
+                ImGui::SliderFloat(
+                    "Vortex##field-strength", &field.vortexStrength,
+                    -20000000.f, 20000000.f, "%.1e"
+                );
+                ImGui::SliderFloat(
+                    "Oscillation amount", &field.oscillationAmount,
+                    0.f, 2.f, "%.2f"
+                );
+                ImGui::SliderFloat(
+                    "Oscillation frequency", &field.oscillationFrequency,
+                    0.1f, 3.f, "%.2f Hz"
+                );
+                ImGui::TextDisabled("Above 1.0 can alternate attract/repel");
+                ImGui::TextDisabled("Drag its coloured ring in the scene");
+                if (ImGui::Button("Delete selected field"))
+                {
+                    pointFields.erase(pointFields.begin() +
+                        static_cast<std::ptrdiff_t>(*selectedPointField));
+                    selectedPointField.reset();
+                    draggingPointField = false;
+                }
+            }
         }
 
         if (ImGui::CollapsingHeader("Performance"))
@@ -1233,14 +1435,15 @@ int main()
             }
         }
 
-        ImGui::TextDisabled("Click: spawn  Drag: throw");
-        ImGui::TextDisabled("Space: pause  N: step  R: reset");
+        ImGui::TextDisabled("Choose a tool above, then click the scene");
+        ImGui::TextDisabled("Space: pause  N: step  R: restart");
         ImGui::End();
         }
 
-        if (draggingPointField)
+        if (draggingPointField && selectedPointField &&
+            *selectedPointField < pointFields.size())
         {
-            pointFieldPosition =
+            pointFields[*selectedPointField].position =
                 toWorldPosition(sf::Mouse::getPosition(window));
         }
 
@@ -1326,6 +1529,32 @@ int main()
             bodies[*selectedBody].shape.setFillColor(sf::Color(255, 215, 0));
         }
 
+        const auto drawPointFieldMarkers = [&]()
+        {
+            for (std::size_t index = 0; index < pointFields.size(); ++index)
+            {
+                const auto& field = pointFields[index];
+                sf::CircleShape marker(12.f);
+                marker.setOrigin(sf::Vector2f(12.f, 12.f));
+                marker.setPosition(field.position);
+                marker.setFillColor(sf::Color::Transparent);
+                sf::Color color = field.vortexStrength != 0.f
+                    ? sf::Color(255, 215, 70, 220)
+                    : (field.radialStrength >= 0.f
+                        ? sf::Color(80, 220, 255, 220)
+                        : sf::Color(255, 90, 190, 220));
+                if (!field.enabled)
+                {
+                    color.a = 80;
+                }
+                marker.setOutlineColor(color);
+                marker.setOutlineThickness(
+                    selectedPointField == index ? 4.f : 2.f
+                );
+                window.draw(marker);
+            }
+        };
+
         if (canvasMode)
         {
             const sf::Color background = canvasBackgrounds[canvasPalette];
@@ -1358,16 +1587,21 @@ int main()
             window.clear(background);
             const sf::Sprite canvasSprite(canvasTexture.getTexture());
             window.draw(canvasSprite);
-            if (pointFieldEnabled)
+            if (selectedBody && *selectedBody < bodies.size())
             {
-                sf::CircleShape fieldMarker(12.f);
-                fieldMarker.setOrigin(sf::Vector2f(12.f, 12.f));
-                fieldMarker.setPosition(pointFieldPosition);
-                fieldMarker.setFillColor(sf::Color::Transparent);
-                fieldMarker.setOutlineColor(sf::Color(255, 255, 255, 180));
-                fieldMarker.setOutlineThickness(2.f);
-                window.draw(fieldMarker);
+                const auto& selected = bodies[*selectedBody].body;
+                sf::CircleShape selectionRing(selected.radius + 4.f);
+                selectionRing.setOrigin(sf::Vector2f(
+                    selected.radius + 4.f,
+                    selected.radius + 4.f
+                ));
+                selectionRing.setPosition(selected.center());
+                selectionRing.setFillColor(sf::Color::Transparent);
+                selectionRing.setOutlineColor(sf::Color::White);
+                selectionRing.setOutlineThickness(2.f);
+                window.draw(selectionRing);
             }
+            drawPointFieldMarkers();
             ImGui::SFML::Render(window);
             window.display();
             continue;
@@ -1440,6 +1674,8 @@ int main()
                 window.draw(marker);
             }
         }
+
+        drawPointFieldMarkers();
 
         ImGui::SFML::Render(window);
         window.display();
