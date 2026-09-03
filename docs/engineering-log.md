@@ -607,3 +607,70 @@ Introduce connected particle systems without requiring polygonal rigid bodies.
 ### Verification
 
 A dedicated automated suite verifies stretched-spring attraction, compressed-spring repulsion, damping against separation, and safe handling of coincident endpoints.
+
+## 2026-09-02 — Anchors, pendulum, and soft-body lattice
+
+### Goal
+
+Use the spring system to demonstrate how connected particles create larger structures and coupled motion.
+
+### Implementation
+
+- Selected particles can be pinned, giving them zero inverse mass so forces cannot accelerate them, or unpinned using radius-derived mass.
+- Pinned particles receive a gold outline and can still be repositioned with the drag tool.
+- The Spring pendulum preset connects two moving masses to one fixed anchor, creating coupled oscillation under gravity.
+- The Soft-body lattice preset connects a 9-by-6 particle grid with horizontal, vertical, and diagonal springs. Diagonals provide shear resistance so the mesh deforms instead of collapsing like an unbraced grid.
+- The lattice's upper corners are pinned, creating a hanging deformable sheet.
+- Both presets save their particle and spring state for deterministic Restart behavior.
+
+### Engineering significance
+
+Complex motion emerges from the same tested pairwise spring rule used for manual connections. This demonstrates compositional simulation design: chains, pendulums, and deformable meshes are different network topologies rather than separate hard-coded physics effects.
+
+## 2026-09-02 — Procedural connected structures
+
+### Goal
+
+Make large spring experiments practical to create, visually distinct, and expressive in Canvas mode.
+
+### Implementation
+
+- Generated populations now default to one uniform 5-pixel particle size, while the mixture controls remain available for deliberate variation.
+- The chain generator accepts up to 1,000 particles and folds long chains into the visible simulation area.
+- Lattice rows, columns, and spacing are adjustable, supporting meshes from a small patch to 1,000 particles.
+- A pendulum-wave preset uses independent pendulums of gradually different lengths, producing changing wave patterns instead of behaving like a chain.
+- A radial spring web adds concentric and radial connections around a pinned centre, creating a new deformable topology.
+- Spring connections are drawn into the persistent Canvas texture, so the structure itself leaves fading traces alongside its particles.
+- Presets are grouped by classical, connected-system, and point-field experiments with no more than three buttons per row.
+- Manual two-body connection remains available as an advanced tool for small custom edits.
+
+### Engineering significance
+
+The same damped-spring force now supports several topologies at very different scales. Separating topology generation from force calculation makes the system easier to expand with future membranes, webs, and other soft structures without duplicating the underlying physics.
+
+### Verification
+
+The application compiles successfully and all five automated physics suites pass.
+
+## 2026-09-02 — Structure controls and dense-scene interaction
+
+### Goal
+
+Make each procedural generator understandable, keep anchors selectable in dense structures, and make ordinary point fields visually useful without requiring particle charge.
+
+### Implementation
+
+- The generator panel now separates chain, lattice, and web settings according to the topology they affect.
+- Chains use particle count; lattices use columns, rows, and spacing; radial webs use independently adjustable ring and spoke counts.
+- A full-screen lattice preset creates a 40-by-30 mesh and automatically fits its spacing to the simulation area.
+- Body selection checks pinned anchors before other overlapping particles, keeping corner anchors accessible after a dense lattice deforms.
+- Charge-independent point fields receive a calibrated visual response multiplier. They remain mass-independent acceleration fields, but attraction, repulsion, and vortex motion are now visible at practical control values.
+- Charge-sensitive fields retain their signed, mass-dependent response: positive and negative particles move oppositely, while neutral particles ignore them.
+
+### Engineering significance
+
+Generator parameters now map directly to structure topology, reducing ambiguous controls. The selection rule deliberately prioritizes semantically important anchors when visual overlap makes ordinary draw-order selection unreliable.
+
+### Verification
+
+The application compiles successfully and all automated physics suites pass.

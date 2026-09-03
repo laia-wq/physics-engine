@@ -97,6 +97,16 @@ std::optional<std::size_t> findBodyAt(
     sf::Vector2f point
 )
 {
+    // In dense structures, pinned anchors can sit beneath moving particles.
+    // Give anchors selection priority so they remain editable.
+    for (std::size_t index = bodies.size(); index > 0; --index)
+    {
+        if (bodies[index - 1].body.inverseMass == 0.f &&
+            containsPoint(bodies[index - 1], point))
+        {
+            return index - 1;
+        }
+    }
     for (std::size_t index = bodies.size(); index > 0; --index)
     {
         if (containsPoint(bodies[index - 1], point))
@@ -119,7 +129,7 @@ void limitMagnitude(sf::Vector2f& vector, float maximumLength)
 }
 
 void drawLine(
-    sf::RenderWindow& window,
+    sf::RenderTarget& target,
     sf::Vector2f start,
     sf::Vector2f end,
     sf::Color color
@@ -129,7 +139,7 @@ void drawLine(
         sf::Vertex{start, color},
         sf::Vertex{end, color}
     };
-    window.draw(vertices.data(), vertices.size(), sf::PrimitiveType::Lines);
+    target.draw(vertices.data(), vertices.size(), sf::PrimitiveType::Lines);
 }
 
 void vectorPad(
@@ -243,19 +253,19 @@ int main()
         springs.clear();
         restartSprings.clear();
         bodies.emplace_back(
-            25.f,
+            5.f,
             sf::Vector2f(100.f, 100.f),
             sf::Vector2f(180.f, 0.f),
             0.75f
         );
         bodies.emplace_back(
-            35.f,
+            5.f,
             sf::Vector2f(300.f, 80.f),
             sf::Vector2f(-100.f, 0.f),
             0.55f
         );
         bodies.emplace_back(
-            18.f,
+            5.f,
             sf::Vector2f(500.f, 50.f),
             sf::Vector2f(70.f, 0.f),
             0.9f
@@ -403,14 +413,14 @@ int main()
     bool colorByCharge = false;
     constexpr float FIELD_SOFTENING = 35.f;
     float floorFriction = 0.98f;
-    float spawnRadius = 22.f;
+    float spawnRadius = 5.f;
     float spawnMass = spawnRadius * spawnRadius;
     bool automaticSpawnMass = true;
     float spawnRestitution = 0.75f;
     float spawnCharge = 0.f;
     std::size_t populationCount = 300;
     float populationRadii[3] = {5.f, 12.f, 24.f};
-    float populationPercentages[3] = {60.f, 30.f, 10.f};
+    float populationPercentages[3] = {100.f, 0.f, 0.f};
     float chargePercentages[3] = {25.f, 50.f, 25.f};
     float framesPerSecond = 0.f;
     bool showVelocityVectors = false;
@@ -424,6 +434,12 @@ int main()
     std::optional<std::size_t> firstSpringBody;
     float newSpringStiffness = 8000.f;
     float newSpringDamping = 300.f;
+    int generatedChainCount = 80;
+    int generatedLatticeColumns = 12;
+    int generatedLatticeRows = 8;
+    int generatedWebRings = 6;
+    int generatedWebSpokes = 16;
+    float generatedStructureSpacing = 20.f;
     bool useSpatialGrid = false;
     float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
@@ -453,9 +469,10 @@ int main()
             constexpr float PI = 3.14159265359f;
             const float oscillation = 1.f + field.oscillationAmount *
                 std::sin(2.f * PI * field.oscillationFrequency * simulationTime);
+            constexpr float VISUAL_FIELD_RESPONSE = 12.f;
             const float response = field.chargeSensitive
                 ? body.charge * body.inverseMass * 400.f
-                : 1.f;
+                : VISUAL_FIELD_RESPONSE;
             totalAcceleration +=
                 direction * (field.radialStrength * oscillation * response /
                     softenedDistanceSquared) +
@@ -560,27 +577,48 @@ int main()
         accumulator = 0.f;
     };
 
-    const auto loadSpringChain = [&]()
+    const auto loadSpringChain = [&](std::size_t bodyCount)
     {
         bodies.clear();
         springs.clear();
-        constexpr std::size_t BODY_COUNT = 18;
-        constexpr float SPACING = 32.f;
-        constexpr float RADIUS = 9.f;
-        for (std::size_t index = 0; index < BODY_COUNT; ++index)
+        constexpr float RADIUS = 5.f;
+        const float spacing = generatedStructureSpacing;
+        const std::size_t columns = std::max(
+            static_cast<std::size_t>((windowWidth - 80.f) / spacing),
+            static_cast<std::size_t>(2)
+        );
+        const std::size_t rowCount = (bodyCount + columns - 1) / columns;
+        const float rowSpacing = rowCount > 1
+            ? std::min(spacing, 480.f / static_cast<float>(rowCount - 1))
+            : spacing;
+        for (std::size_t index = 0; index < bodyCount; ++index)
         {
+            const std::size_t row = index / columns;
+            const std::size_t columnInRow = index % columns;
+            const std::size_t column = row % 2 == 0
+                ? columnInRow
+                : columns - 1 - columnInRow;
             bodies.emplace_back(
                 RADIUS,
-                sf::Vector2f(100.f + static_cast<float>(index) * SPACING, 100.f),
+                sf::Vector2f(
+                    35.f + static_cast<float>(column) * spacing,
+                    55.f + static_cast<float>(row) * rowSpacing
+                ),
                 sf::Vector2f(0.f, 0.f),
                 0.5f
             );
             if (index > 0)
             {
+                const sf::Vector2f difference =
+                    bodies[index].body.center() -
+                    bodies[index - 1].body.center();
+                const float restLength = std::sqrt(
+                    difference.x * difference.x + difference.y * difference.y
+                );
                 springs.push_back({
                     index - 1,
                     index,
-                    SPACING,
+                    restLength,
                     newSpringStiffness,
                     newSpringDamping
                 });
@@ -598,6 +636,210 @@ int main()
         windEnabled = false;
         pointFields.clear();
         selectedPointField.reset();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
+    const auto loadSpringPendulum = [&]()
+    {
+        bodies.clear();
+        springs.clear();
+        constexpr std::size_t PENDULUM_COUNT = 11;
+        constexpr float ANGLE = 0.62f;
+        for (std::size_t index = 0; index < PENDULUM_COUNT; ++index)
+        {
+            const float anchorX = 95.f + static_cast<float>(index) * 61.f;
+            const float length = 125.f + static_cast<float>(index) * 11.f;
+            const std::size_t anchorIndex = bodies.size();
+            bodies.emplace_back(
+                4.f,
+                sf::Vector2f(anchorX - 4.f, 60.f),
+                sf::Vector2f(0.f, 0.f),
+                0.3f
+            );
+            bodies.back().body.inverseMass = 0.f;
+            const std::size_t bobIndex = bodies.size();
+            bodies.emplace_back(
+                7.f,
+                sf::Vector2f(
+                    anchorX + std::sin(ANGLE) * length - 7.f,
+                    64.f + std::cos(ANGLE) * length - 7.f
+                ),
+                sf::Vector2f(0.f, 0.f),
+                0.45f
+            );
+            springs.push_back({
+                anchorIndex,
+                bobIndex,
+                length,
+                20000.f,
+                45.f
+            });
+        }
+        restartBodies = bodies;
+        restartSprings = springs;
+        firstSpringBody.reset();
+        gravityEnabled = true;
+        gravityField[0] = 0.f;
+        gravityField[1] = GRAVITY;
+        windEnabled = false;
+        pointFields.clear();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
+    const auto loadSoftBodyLattice = [&](std::size_t columns, std::size_t rows)
+    {
+        bodies.clear();
+        springs.clear();
+        constexpr float RADIUS = 5.f;
+        const float spacing = std::min({
+            generatedStructureSpacing,
+            (windowWidth - 20.f) / static_cast<float>(columns - 1),
+            (windowHeight - 20.f) / static_cast<float>(rows - 1)
+        });
+        const float startX = (windowWidth -
+            static_cast<float>(columns - 1) * spacing) * 0.5f - RADIUS;
+        const float startY = (windowHeight -
+            static_cast<float>(rows - 1) * spacing) * 0.5f - RADIUS;
+        for (std::size_t row = 0; row < rows; ++row)
+        {
+            for (std::size_t column = 0; column < columns; ++column)
+            {
+                bodies.emplace_back(
+                    RADIUS,
+                    sf::Vector2f(
+                        startX + static_cast<float>(column) * spacing,
+                        startY + static_cast<float>(row) * spacing
+                    ),
+                    sf::Vector2f(0.f, 0.f),
+                    0.35f
+                );
+            }
+        }
+        const auto connect = [&](std::size_t first, std::size_t second)
+        {
+            const sf::Vector2f difference =
+                bodies[second].body.center() - bodies[first].body.center();
+            springs.push_back({
+                first,
+                second,
+                std::sqrt(difference.x * difference.x + difference.y * difference.y),
+                6500.f,
+                260.f
+            });
+        };
+        for (std::size_t row = 0; row < rows; ++row)
+        {
+            for (std::size_t column = 0; column < columns; ++column)
+            {
+                const std::size_t index = row * columns + column;
+                if (column + 1 < columns)
+                {
+                    connect(index, index + 1);
+                }
+                if (row + 1 < rows)
+                {
+                    connect(index, index + columns);
+                }
+                if (row + 1 < rows && column + 1 < columns)
+                {
+                    connect(index, index + columns + 1);
+                }
+                if (row + 1 < rows && column > 0)
+                {
+                    connect(index, index + columns - 1);
+                }
+            }
+        }
+        bodies[0].body.inverseMass = 0.f;
+        bodies[columns - 1].body.inverseMass = 0.f;
+        restartBodies = bodies;
+        restartSprings = springs;
+        firstSpringBody.reset();
+        gravityEnabled = true;
+        gravityField[0] = 0.f;
+        gravityField[1] = 280.f;
+        windEnabled = false;
+        pointFields.clear();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
+    const auto loadRadialWeb = [&](std::size_t ringCount,
+                                   std::size_t spokeCount)
+    {
+        bodies.clear();
+        springs.clear();
+        constexpr float PI = 3.14159265359f;
+        const sf::Vector2f center(400.f, 270.f);
+        const float ringSpacing = 220.f / static_cast<float>(ringCount);
+        bodies.emplace_back(
+            6.f, center - sf::Vector2f(6.f, 6.f),
+            sf::Vector2f(0.f, 0.f), 0.4f
+        );
+        bodies[0].body.inverseMass = 0.f;
+
+        for (std::size_t ring = 0; ring < ringCount; ++ring)
+        {
+            const float distance = ringSpacing * static_cast<float>(ring + 1);
+            for (std::size_t spoke = 0; spoke < spokeCount; ++spoke)
+            {
+                const float angle = 2.f * PI * static_cast<float>(spoke) /
+                    static_cast<float>(spokeCount);
+                const sf::Vector2f radial(std::cos(angle), std::sin(angle));
+                const sf::Vector2f tangent(-radial.y, radial.x);
+                bodies.emplace_back(
+                    4.f,
+                    center + radial * distance - sf::Vector2f(4.f, 4.f),
+                    tangent * (18.f + static_cast<float>(ring) * 4.f),
+                    0.4f
+                );
+            }
+        }
+
+        const auto connect = [&](std::size_t first, std::size_t second)
+        {
+            const sf::Vector2f difference =
+                bodies[second].body.center() - bodies[first].body.center();
+            springs.push_back({
+                first,
+                second,
+                std::sqrt(difference.x * difference.x + difference.y * difference.y),
+                9000.f,
+                190.f
+            });
+        };
+        for (std::size_t ring = 0; ring < ringCount; ++ring)
+        {
+            const std::size_t ringStart = 1 + ring * spokeCount;
+            for (std::size_t spoke = 0; spoke < spokeCount; ++spoke)
+            {
+                connect(ringStart + spoke,
+                    ringStart + (spoke + 1) % spokeCount);
+                if (ring == 0)
+                {
+                    connect(0, ringStart + spoke);
+                }
+                else
+                {
+                    connect(ringStart - spokeCount + spoke, ringStart + spoke);
+                }
+            }
+        }
+
+        restartBodies = bodies;
+        restartSprings = springs;
+        firstSpringBody.reset();
+        gravityEnabled = false;
+        windEnabled = false;
+        pointFields.clear();
         mutualElectrostaticsEnabled = false;
         bodyCollisionsEnabled = false;
         accumulator = 0.f;
@@ -1312,6 +1554,7 @@ int main()
 
         if (ImGui::CollapsingHeader("Preset scenes"))
         {
+            ImGui::TextDisabled("Classical physics");
             if (ImGui::Button("Classic"))
             {
                 loadClassicScene();
@@ -1402,11 +1645,37 @@ int main()
                 colorByCharge = true;
                 bodyCollisionsEnabled = false;
             }
-            ImGui::SameLine();
+            ImGui::TextDisabled("Connected systems");
             if (ImGui::Button("Spring chain"))
             {
-                loadSpringChain();
+                loadSpringChain(static_cast<std::size_t>(generatedChainCount));
             }
+            ImGui::SameLine();
+            if (ImGui::Button("Pendulum wave"))
+            {
+                loadSpringPendulum();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Soft-body lattice"))
+            {
+                loadSoftBodyLattice(
+                    static_cast<std::size_t>(generatedLatticeColumns),
+                    static_cast<std::size_t>(generatedLatticeRows)
+                );
+            }
+            if (ImGui::Button("Radial spring web"))
+            {
+                loadRadialWeb(
+                    static_cast<std::size_t>(generatedWebRings),
+                    static_cast<std::size_t>(generatedWebSpokes)
+                );
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Full-screen lattice"))
+            {
+                loadSoftBodyLattice(40, 30);
+            }
+            ImGui::TextDisabled("Point fields");
             if (ImGui::Button("Attractor"))
             {
                 loadStressScene(300);
@@ -1569,6 +1838,23 @@ int main()
                     selected.restitution
                 );
                 ImGui::Text("Charge: %+.1f", selected.charge);
+                ImGui::Text("Pinned: %s", inverseMass == 0.f ? "yes" : "no");
+                if (inverseMass > 0.f)
+                {
+                    if (ImGui::Button("Pin selected"))
+                    {
+                        bodies[*selectedBody].body.inverseMass = 0.f;
+                        restartBodies = bodies;
+                    }
+                }
+                else if (ImGui::Button("Unpin selected"))
+                {
+                    const float radius = bodies[*selectedBody].body.radius;
+                    bodies[*selectedBody].body.inverseMass =
+                        1.f / (radius * radius);
+                    restartBodies = bodies;
+                }
+                ImGui::SameLine();
                 if (ImGui::Button("Delete selected"))
                 {
                     deleteBody(*selectedBody);
@@ -1604,6 +1890,55 @@ int main()
             ))
         {
             ImGui::Text("Connections: %zu", springs.size());
+            ImGui::TextDisabled("Chain — one linked path");
+            ImGui::SliderInt(
+                "Chain particles", &generatedChainCount, 2, 1000
+            );
+            if (ImGui::Button("Generate chain"))
+            {
+                loadSpringChain(
+                    static_cast<std::size_t>(generatedChainCount)
+                );
+            }
+
+            ImGui::Separator();
+            ImGui::TextDisabled("Lattice — a rectangular spring mesh");
+            ImGui::SliderInt(
+                "Lattice columns", &generatedLatticeColumns, 2, 40
+            );
+            ImGui::SliderInt(
+                "Lattice rows", &generatedLatticeRows, 2, 30
+            );
+            ImGui::SliderFloat(
+                "Lattice / chain spacing", &generatedStructureSpacing,
+                12.f, 40.f, "%.0f px"
+            );
+            if (ImGui::Button("Generate lattice"))
+            {
+                loadSoftBodyLattice(
+                    static_cast<std::size_t>(generatedLatticeColumns),
+                    static_cast<std::size_t>(generatedLatticeRows)
+                );
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Fill screen"))
+            {
+                loadSoftBodyLattice(40, 30);
+            }
+
+            ImGui::Separator();
+            ImGui::TextDisabled("Web — concentric rings and radial spokes");
+            ImGui::SliderInt("Web rings", &generatedWebRings, 2, 15);
+            ImGui::SliderInt("Web spokes", &generatedWebSpokes, 4, 40);
+            if (ImGui::Button("Generate web"))
+            {
+                loadRadialWeb(
+                    static_cast<std::size_t>(generatedWebRings),
+                    static_cast<std::size_t>(generatedWebSpokes)
+                );
+            }
+            ImGui::Separator();
+            ImGui::TextDisabled("Manual connection (advanced)");
             ImGui::SliderFloat(
                 "New spring stiffness", &newSpringStiffness,
                 500.f, 20000.f, "%.0f"
@@ -1861,22 +2196,30 @@ int main()
                     ? sf::Color(70, 170, 255)
                     : sf::Color::White);
             view.shape.setFillColor(colorByCharge ? chargeColor : sf::Color::White);
+            view.shape.setOutlineColor(sf::Color(255, 215, 70));
+            view.shape.setOutlineThickness(
+                view.body.inverseMass == 0.f ? 3.f : 0.f
+            );
             view.sync();
         }
 
-        for (std::size_t first = 0; first < bodies.size(); ++first)
+        if (bodyCollisionsEnabled)
         {
-            for (std::size_t second = first + 1; second < bodies.size(); ++second)
+            for (std::size_t first = 0; first < bodies.size(); ++first)
             {
-                if (physics::circlesOverlap(
-                        bodies[first].body.center(),
-                        bodies[first].body.radius,
-                        bodies[second].body.center(),
-                        bodies[second].body.radius
-                    ))
+                for (std::size_t second = first + 1;
+                     second < bodies.size(); ++second)
                 {
-                    bodies[first].shape.setFillColor(sf::Color::Red);
-                    bodies[second].shape.setFillColor(sf::Color::Red);
+                    if (physics::circlesOverlap(
+                            bodies[first].body.center(),
+                            bodies[first].body.radius,
+                            bodies[second].body.center(),
+                            bodies[second].body.radius
+                        ))
+                    {
+                        bodies[first].shape.setFillColor(sf::Color::Red);
+                        bodies[second].shape.setFillColor(sf::Color::Red);
+                    }
                 }
             }
         }
@@ -1886,7 +2229,8 @@ int main()
             bodies[*selectedBody].shape.setFillColor(sf::Color(255, 215, 0));
         }
 
-        const auto drawSpringConnections = [&]()
+        const auto drawSpringConnections = [&](sf::RenderTarget& target,
+                                                unsigned char alpha = 255)
         {
             for (const auto& spring : springs)
             {
@@ -1902,12 +2246,13 @@ int main()
                     difference.x * difference.x + difference.y * difference.y
                 );
                 const float extension = length - spring.restLength;
-                const sf::Color color = extension > 2.f
+                sf::Color color = extension > 2.f
                     ? sf::Color(255, 120, 100)
                     : (extension < -2.f
                         ? sf::Color(90, 180, 255)
                         : sf::Color(210, 220, 235));
-                drawLine(window, start, end, color);
+                color.a = alpha;
+                drawLine(target, start, end, color);
             }
         };
 
@@ -1975,12 +2320,13 @@ int main()
                 }
                 canvasTexture.draw(canvasShape, sf::BlendAdd);
             }
+            drawSpringConnections(canvasTexture, 55);
             canvasTexture.display();
 
             window.clear(background);
             const sf::Sprite canvasSprite(canvasTexture.getTexture());
             window.draw(canvasSprite);
-            drawSpringConnections();
+            drawSpringConnections(window);
             if (selectedBody && *selectedBody < bodies.size())
             {
                 const auto& selected = bodies[*selectedBody].body;
@@ -2026,7 +2372,7 @@ int main()
             }
         }
 
-        drawSpringConnections();
+        drawSpringConnections(window);
 
         for (const auto& view : bodies)
         {
