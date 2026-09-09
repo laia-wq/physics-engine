@@ -20,7 +20,6 @@ namespace
 {
 constexpr float WINDOW_WIDTH = 800.f;
 constexpr float WINDOW_HEIGHT = 600.f;
-constexpr float GRAVITY = 500.f;
 constexpr float MINIMUM_BOUNCE_SPEED = 15.f;
 constexpr float FIXED_TIME_STEP = 1.f / 120.f;
 constexpr float MAX_FRAME_TIME = 0.25f;
@@ -63,7 +62,7 @@ struct CircleView
               radius,
               position,
               velocity,
-              sf::Vector2f(0.f, GRAVITY),
+              sf::Vector2f(0.f, 0.f),
               restitution
           ),
           shape(radius)
@@ -392,7 +391,7 @@ int main()
     sf::Vector2f dragOffset;
     sf::Vector2f lastMousePosition;
     sf::Vector2f throwVelocity;
-    float gravityField[2] = {0.f, GRAVITY};
+    float gravityField[2] = {0.f, 0.f};
     float windForce[2] = {0.f, 0.f};
     bool gravityEnabled = true;
     bool windEnabled = true;
@@ -434,6 +433,9 @@ int main()
     std::optional<std::size_t> firstSpringBody;
     float newSpringStiffness = 8000.f;
     float newSpringDamping = 300.f;
+    bool breakableSprings = false;
+    float springBreakingStrain = 0.65f;
+    std::size_t brokenSpringCount = 0;
     int generatedChainCount = 80;
     int generatedLatticeColumns = 12;
     int generatedLatticeRows = 8;
@@ -564,7 +566,7 @@ int main()
         draggingPointField = false;
         gravityEnabled = true;
         gravityField[0] = 0.f;
-        gravityField[1] = GRAVITY;
+        gravityField[1] = 0.f;
         windEnabled = true;
         windForce[0] = 0.f;
         windForce[1] = 0.f;
@@ -581,6 +583,8 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        breakableSprings = false;
+        brokenSpringCount = 0;
         constexpr float RADIUS = 5.f;
         const float spacing = generatedStructureSpacing;
         const std::size_t columns = std::max(
@@ -632,60 +636,10 @@ int main()
         firstSpringBody.reset();
         gravityEnabled = true;
         gravityField[0] = 0.f;
-        gravityField[1] = GRAVITY;
+        gravityField[1] = 0.f;
         windEnabled = false;
         pointFields.clear();
         selectedPointField.reset();
-        mutualElectrostaticsEnabled = false;
-        bodyCollisionsEnabled = false;
-        accumulator = 0.f;
-        simulationTime = 0.f;
-    };
-
-    const auto loadSpringPendulum = [&]()
-    {
-        bodies.clear();
-        springs.clear();
-        constexpr std::size_t PENDULUM_COUNT = 11;
-        constexpr float ANGLE = 0.62f;
-        for (std::size_t index = 0; index < PENDULUM_COUNT; ++index)
-        {
-            const float anchorX = 95.f + static_cast<float>(index) * 61.f;
-            const float length = 125.f + static_cast<float>(index) * 11.f;
-            const std::size_t anchorIndex = bodies.size();
-            bodies.emplace_back(
-                4.f,
-                sf::Vector2f(anchorX - 4.f, 60.f),
-                sf::Vector2f(0.f, 0.f),
-                0.3f
-            );
-            bodies.back().body.inverseMass = 0.f;
-            const std::size_t bobIndex = bodies.size();
-            bodies.emplace_back(
-                7.f,
-                sf::Vector2f(
-                    anchorX + std::sin(ANGLE) * length - 7.f,
-                    64.f + std::cos(ANGLE) * length - 7.f
-                ),
-                sf::Vector2f(0.f, 0.f),
-                0.45f
-            );
-            springs.push_back({
-                anchorIndex,
-                bobIndex,
-                length,
-                20000.f,
-                45.f
-            });
-        }
-        restartBodies = bodies;
-        restartSprings = springs;
-        firstSpringBody.reset();
-        gravityEnabled = true;
-        gravityField[0] = 0.f;
-        gravityField[1] = GRAVITY;
-        windEnabled = false;
-        pointFields.clear();
         mutualElectrostaticsEnabled = false;
         bodyCollisionsEnabled = false;
         accumulator = 0.f;
@@ -696,6 +650,8 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        breakableSprings = false;
+        brokenSpringCount = 0;
         constexpr float RADIUS = 5.f;
         const float spacing = std::min({
             generatedStructureSpacing,
@@ -763,7 +719,7 @@ int main()
         firstSpringBody.reset();
         gravityEnabled = true;
         gravityField[0] = 0.f;
-        gravityField[1] = 280.f;
+        gravityField[1] = 0.f;
         windEnabled = false;
         pointFields.clear();
         mutualElectrostaticsEnabled = false;
@@ -777,6 +733,8 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        breakableSprings = false;
+        brokenSpringCount = 0;
         constexpr float PI = 3.14159265359f;
         const sf::Vector2f center(400.f, 270.f);
         const float ringSpacing = 220.f / static_cast<float>(ringCount);
@@ -1025,6 +983,38 @@ int main()
                     spring.damping
                 );
             }
+        }
+
+        if (breakableSprings)
+        {
+            const std::size_t connectionCountBefore = springs.size();
+            springs.erase(
+                std::remove_if(
+                    springs.begin(), springs.end(),
+                    [&](const physics::Spring& spring)
+                    {
+                        if (spring.first >= bodies.size() ||
+                            spring.second >= bodies.size() ||
+                            spring.restLength <= 0.f)
+                        {
+                            return false;
+                        }
+                        const sf::Vector2f difference =
+                            bodies[spring.second].body.center() -
+                            bodies[spring.first].body.center();
+                        const float currentLength = std::sqrt(
+                            difference.x * difference.x +
+                            difference.y * difference.y
+                        );
+                        const float strain =
+                            (currentLength - spring.restLength) /
+                            spring.restLength;
+                        return strain > springBreakingStrain;
+                    }
+                ),
+                springs.end()
+            );
+            brokenSpringCount += connectionCountBefore - springs.size();
         }
 
         for (std::size_t index = 0; index < bodies.size(); ++index)
@@ -1428,6 +1418,7 @@ int main()
         {
             bodies = restartBodies;
             springs = restartSprings;
+            brokenSpringCount = 0;
             pointFields.erase(
                 std::remove_if(
                     pointFields.begin(), pointFields.end(),
@@ -1500,7 +1491,7 @@ int main()
             if (ImGui::SmallButton("Reset gravity"))
             {
                 gravityField[0] = 0.f;
-                gravityField[1] = GRAVITY;
+                gravityField[1] = 0.f;
             }
             ImGui::BeginDisabled(!gravityEnabled);
             vectorPad("Gravity direction", gravityField, 1500.f);
@@ -1560,7 +1551,7 @@ int main()
                 loadClassicScene();
                 mutualElectrostaticsEnabled = false;
                 gravityField[0] = 0.f;
-                gravityField[1] = GRAVITY;
+                gravityField[1] = 0.f;
                 windForce[0] = 0.f;
                 windForce[1] = 0.f;
                 gravityEnabled = true;
@@ -1651,11 +1642,6 @@ int main()
                 loadSpringChain(static_cast<std::size_t>(generatedChainCount));
             }
             ImGui::SameLine();
-            if (ImGui::Button("Pendulum wave"))
-            {
-                loadSpringPendulum();
-            }
-            ImGui::SameLine();
             if (ImGui::Button("Soft-body lattice"))
             {
                 loadSoftBodyLattice(
@@ -1674,6 +1660,13 @@ int main()
             if (ImGui::Button("Full-screen lattice"))
             {
                 loadSoftBodyLattice(40, 30);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Tearable lattice"))
+            {
+                loadSoftBodyLattice(40, 30);
+                breakableSprings = true;
+                brokenSpringCount = 0;
             }
             ImGui::TextDisabled("Point fields");
             if (ImGui::Button("Attractor"))
@@ -1890,6 +1883,15 @@ int main()
             ))
         {
             ImGui::Text("Connections: %zu", springs.size());
+            ImGui::Checkbox("Breakable connections", &breakableSprings);
+            ImGui::BeginDisabled(!breakableSprings);
+            ImGui::SliderFloat(
+                "Breaking strain", &springBreakingStrain,
+                0.1f, 2.f, "%.2f"
+            );
+            ImGui::Text("Broken since load: %zu", brokenSpringCount);
+            ImGui::TextDisabled("0.65 breaks at 65%% beyond resting length");
+            ImGui::EndDisabled();
             ImGui::TextDisabled("Chain — one linked path");
             ImGui::SliderInt(
                 "Chain particles", &generatedChainCount, 2, 1000

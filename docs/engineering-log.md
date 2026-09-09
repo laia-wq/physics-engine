@@ -608,7 +608,7 @@ Introduce connected particle systems without requiring polygonal rigid bodies.
 
 A dedicated automated suite verifies stretched-spring attraction, compressed-spring repulsion, damping against separation, and safe handling of coincident endpoints.
 
-## 2026-09-02 — Anchors, pendulum, and soft-body lattice
+## 2026-09-02 — Anchors and soft-body lattice
 
 ### Goal
 
@@ -618,14 +618,13 @@ Use the spring system to demonstrate how connected particles create larger struc
 
 - Selected particles can be pinned, giving them zero inverse mass so forces cannot accelerate them, or unpinned using radius-derived mass.
 - Pinned particles receive a gold outline and can still be repositioned with the drag tool.
-- The Spring pendulum preset connects two moving masses to one fixed anchor, creating coupled oscillation under gravity.
 - The Soft-body lattice preset connects a 9-by-6 particle grid with horizontal, vertical, and diagonal springs. Diagonals provide shear resistance so the mesh deforms instead of collapsing like an unbraced grid.
 - The lattice's upper corners are pinned, creating a hanging deformable sheet.
-- Both presets save their particle and spring state for deterministic Restart behavior.
+- Connected presets save their particle and spring state for deterministic Restart behavior.
 
 ### Engineering significance
 
-Complex motion emerges from the same tested pairwise spring rule used for manual connections. This demonstrates compositional simulation design: chains, pendulums, and deformable meshes are different network topologies rather than separate hard-coded physics effects.
+Complex motion emerges from the same tested pairwise spring rule used for manual connections. This demonstrates compositional simulation design: chains and deformable meshes are different network topologies rather than separate hard-coded physics effects.
 
 ## 2026-09-02 — Procedural connected structures
 
@@ -638,7 +637,7 @@ Make large spring experiments practical to create, visually distinct, and expres
 - Generated populations now default to one uniform 5-pixel particle size, while the mixture controls remain available for deliberate variation.
 - The chain generator accepts up to 1,000 particles and folds long chains into the visible simulation area.
 - Lattice rows, columns, and spacing are adjustable, supporting meshes from a small patch to 1,000 particles.
-- A pendulum-wave preset uses independent pendulums of gradually different lengths, producing changing wave patterns instead of behaving like a chain.
+- Chains, lattices, and radial webs provide visibly different connected structures from the same underlying force model.
 - A radial spring web adds concentric and radial connections around a pinned centre, creating a new deformable topology.
 - Spring connections are drawn into the persistent Canvas texture, so the structure itself leaves fading traces alongside its particles.
 - Presets are grouped by classical, connected-system, and point-field experiments with no more than three buttons per row.
@@ -670,6 +669,30 @@ Make each procedural generator understandable, keep anchors selectable in dense 
 ### Engineering significance
 
 Generator parameters now map directly to structure topology, reducing ambiguous controls. The selection rule deliberately prioritizes semantically important anchors when visual overlap makes ordinary draw-order selection unreliable.
+
+### Verification
+
+The application compiles successfully and all automated physics suites pass.
+
+## 2026-09-02 — Breakable spring materials
+
+### Goal
+
+Let connected structures fail under excessive deformation and make zero acceleration the neutral starting environment.
+
+### Implementation
+
+- Gravity now starts and resets to `(0, 0)` for the application, generated populations, chains, and lattices. Named experiments such as Particle Rain can still deliberately configure gravity.
+- The redundant connected-system preset and its dedicated construction code were removed.
+- Breakable connections can be enabled for any spring structure.
+- Breaking strain measures extension relative to original length: a value of `0.65` breaks a spring after it stretches 65 percent beyond rest length.
+- Broken connections are removed after spring forces are evaluated, and a live counter reports material failures since the structure was loaded.
+- Restart restores the original connection network and clears the failure counter.
+- A Tearable lattice preset loads the 1,200-particle full-screen mesh with spring failure enabled.
+
+### Engineering significance
+
+Strain is dimensionless, so the same threshold works consistently for connections with different rest lengths. This introduces a simple material-failure model while preserving the existing tested Hooke-and-damping force calculation.
 
 ### Verification
 
