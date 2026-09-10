@@ -67,6 +67,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Structural, flexible, fragile, and fixed particle materials with region IDs
 - Material-aware wind, field response, colouring, and connection failure
 - Adjustable region-cutting brush that severs connections without deleting particles
+- Curved particle-mesh apple whose spacing and automatic neighbour connections create its depth cues
 
 ## Requirements
 

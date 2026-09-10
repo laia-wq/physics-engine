@@ -750,6 +750,34 @@ The tool changes network topology at runtime while avoiding invalid particle ind
 
 The project builds without warnings and all six automated physics suites pass. Final verification requires dragging the brush through connected presets and confirming that Restart restores their original topology.
 
+## 2026-09-10 — Silhouette-to-particle artwork
+
+### Goal
+
+Prove that a recognizable, depth-styled image can be generated as a connected physical structure without manually placing every particle.
+
+### Implementation
+
+- The apple is generated as a 37-by-39 curved mesh rather than a coloured, filled-in silhouette.
+- A sine projection compresses particles near the left and right edges while leaving more space across the visible front, similar to longitude lines wrapping around a rounded surface.
+- Row width changes over the fruit's height, and a small vertical displacement bends the cross-lines around its front surface.
+- Horizontal, vertical, and diagonal neighbours are connected automatically, making the mesh itself communicate shape and volume.
+- The fruit uses the existing Flexible material colour. Its stem uses Structural material particles and ends in one Fixed anchor.
+- No custom artwork colours or painted highlights are used; depth comes from geometry, particle density, and visible connections.
+- Artwork particles use a deliberately small radius and a wider projected surface so the connection network remains visible instead of disappearing beneath adjacent circles.
+- Both mesh axes use nonlinear projection: connections are longest across the visible front and progressively shorten toward the sides, top, and bottom. A small oblique offset bends the grid asymmetrically, strengthening the impression of a surface viewed in perspective.
+- The projected width includes a deliberate upper-shoulder bulge, lower-half taper, and stronger central top notch so perspective variation does not erase the recognizable apple silhouette.
+- After comparison with a front-view photographic reference, the procedural oval was replaced by an interpolated width profile: shallow stem cavity, broad upper-middle shoulders, sustained side fullness, and a quicker lower taper. The top notch was reduced and a subtle blossom-end dimple was added.
+- The scene uses distance constraints to preserve the silhouette while remaining responsive to fields, wind, dragging, and connection cutting.
+
+### Engineering significance
+
+The important step is the conversion from a parameterized form to particles, material metadata, and an automatically generated connection graph. The variable spacing provides a reusable visual language for future objects without depending on realistic textures or colours.
+
+### Verification
+
+The project builds without warnings and all six automated physics suites pass. Visual verification should confirm that the mesh reads as rounded before it moves, remains stable after Restart, and responds to existing fields and the cutting brush.
+
 ## 2026-09-02 — Breakable spring materials
 
 ### Goal

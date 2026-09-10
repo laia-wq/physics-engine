@@ -865,6 +865,201 @@ int main()
         restartSprings = springs;
     };
 
+    const auto loadParticleApple = [&]()
+    {
+        constexpr std::size_t COLUMNS = 37;
+        constexpr std::size_t ROWS = 39;
+        constexpr float RADIUS = 1.9f;
+        constexpr float PI = 3.14159265359f;
+        const sf::Vector2f center(windowWidth * 0.5f, windowHeight * 0.52f);
+
+        bodies.clear();
+        springs.clear();
+        std::vector<std::optional<std::size_t>> particleAt(COLUMNS * ROWS);
+
+        for (std::size_t row = 0; row < ROWS; ++row)
+        {
+            for (std::size_t column = 0; column < COLUMNS; ++column)
+            {
+                const float v = -0.94f + 1.88f *
+                    static_cast<float>(row) / static_cast<float>(ROWS - 1);
+                const float u = -1.f + 2.f *
+                    static_cast<float>(column) /
+                    static_cast<float>(COLUMNS - 1);
+
+                // Sine projection compresses particles near the silhouette,
+                // like longitude lines curving around a three-dimensional form.
+                const float projectedU = std::sin(u * PI * 0.5f);
+                const float projectedV = std::sin(v * PI * 0.5f);
+                const float roundness = std::sqrt(std::max(
+                    0.f, 1.f - projectedV * projectedV
+                ));
+                // Width samples follow a front-view apple reference: a
+                // shallow stem cavity, full upper shoulders, long rounded
+                // sides, then a quicker taper around the blossom end.
+                constexpr std::array<std::pair<float, float>, 10> profile{{
+                    {-1.00f, 0.12f}, {-0.88f, 0.58f}, {-0.68f, 0.88f},
+                    {-0.38f, 1.00f}, {-0.05f, 0.98f}, {0.28f, 0.93f},
+                    {0.55f, 0.80f}, {0.76f, 0.61f}, {0.92f, 0.31f},
+                    {1.00f, 0.10f}
+                }};
+                float widthScale = profile.back().second;
+                for (std::size_t sample = 1; sample < profile.size(); ++sample)
+                {
+                    if (projectedV <= profile[sample].first)
+                    {
+                        const auto [previousV, previousWidth] =
+                            profile[sample - 1];
+                        const auto [nextV, nextWidth] = profile[sample];
+                        const float amount = (projectedV - previousV) /
+                            (nextV - previousV);
+                        widthScale = previousWidth +
+                            amount * (nextWidth - previousWidth);
+                        break;
+                    }
+                }
+                const float halfWidth = 174.f * widthScale;
+                const float frontBulge =
+                    std::cos(u * PI * 0.5f) * roundness;
+                const float topNotch = projectedV < -0.78f
+                    ? 11.f * std::pow(1.f - std::abs(u), 3.f) *
+                        (-projectedV - 0.78f) / 0.22f
+                    : 0.f;
+                const float bottomDimple = projectedV > 0.86f
+                    ? -5.f * std::pow(1.f - std::abs(u), 3.f) *
+                        (projectedV - 0.86f) / 0.14f
+                    : 0.f;
+                const sf::Vector2f particleCenter(
+                    center.x + projectedU * halfWidth + 8.f * frontBulge,
+                    center.y + projectedV * 180.f + topNotch + bottomDimple -
+                        6.f * frontBulge
+                );
+
+                const std::size_t bodyIndex = bodies.size();
+                bodies.emplace_back(
+                    RADIUS,
+                    particleCenter - sf::Vector2f(RADIUS, RADIUS),
+                    sf::Vector2f(0.f, 0.f),
+                    0.25f
+                );
+                particleAt[row * COLUMNS + column] = bodyIndex;
+                bodies.back().material = ParticleMaterial::Flexible;
+                bodies.back().groupId = 1;
+            }
+        }
+
+        // A narrow structural stem supplies the identifying detail without
+        // relying on a painted fruit colour.
+        std::optional<std::size_t> previousStem;
+        for (std::size_t index = 0; index < 9; ++index)
+        {
+            const float t = static_cast<float>(index);
+            bodies.emplace_back(
+                RADIUS,
+                center + sf::Vector2f(5.f + t * 1.6f, -190.f - t * 7.f) -
+                    sf::Vector2f(RADIUS, RADIUS),
+                sf::Vector2f(0.f, 0.f),
+                0.25f
+            );
+            bodies.back().material = index == 8
+                ? ParticleMaterial::Fixed
+                : ParticleMaterial::Structural;
+            bodies.back().groupId = 2;
+            if (index == 8)
+            {
+                bodies.back().body.inverseMass = 0.f;
+            }
+            if (previousStem)
+            {
+                const auto first = *previousStem;
+                const auto second = bodies.size() - 1;
+                const sf::Vector2f difference =
+                    bodies[second].body.center() - bodies[first].body.center();
+                springs.push_back({first, second,
+                    std::sqrt(difference.x * difference.x + difference.y * difference.y),
+                    6500.f, 260.f});
+            }
+            previousStem = bodies.size() - 1;
+        }
+
+        const auto connect = [&](std::size_t first, std::size_t second)
+        {
+            const sf::Vector2f difference =
+                bodies[second].body.center() - bodies[first].body.center();
+            springs.push_back({
+                first,
+                second,
+                std::sqrt(difference.x * difference.x +
+                    difference.y * difference.y),
+                6500.f,
+                260.f
+            });
+        };
+        for (std::size_t row = 0; row < ROWS; ++row)
+        {
+            for (std::size_t column = 0; column < COLUMNS; ++column)
+            {
+                const auto current = particleAt[row * COLUMNS + column];
+                if (!current)
+                {
+                    continue;
+                }
+                const auto connectIfPresent = [&](std::size_t otherRow,
+                                                  std::size_t otherColumn)
+                {
+                    const auto other =
+                        particleAt[otherRow * COLUMNS + otherColumn];
+                    if (other)
+                    {
+                        connect(*current, *other);
+                    }
+                };
+                if (column + 1 < COLUMNS)
+                {
+                    connectIfPresent(row, column + 1);
+                }
+                if (row + 1 < ROWS)
+                {
+                    connectIfPresent(row + 1, column);
+                    if (column + 1 < COLUMNS)
+                    {
+                        connectIfPresent(row + 1, column + 1);
+                    }
+                    if (column > 0)
+                    {
+                        connectIfPresent(row + 1, column - 1);
+                    }
+                }
+            }
+        }
+        connect(*particleAt[COLUMNS / 2], COLUMNS * ROWS);
+
+        useDistanceConstraints = true;
+        constraintIterations = 10;
+        constraintStiffness = 0.85f;
+        breakableSprings = false;
+        brokenSpringCount = 0;
+        cutConnectionCount = 0;
+        colorByCharge = false;
+        colorByMaterial = true;
+        gravityEnabled = true;
+        gravityField[0] = 0.f;
+        gravityField[1] = 0.f;
+        windEnabled = true;
+        windForce[0] = 0.f;
+        windForce[1] = 0.f;
+        pointFields.clear();
+        selectedPointField.reset();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        selectedBody.reset();
+        draggedBody.reset();
+        restartBodies = bodies;
+        restartSprings = springs;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
     const auto loadRadialWeb = [&](std::size_t ringCount,
                                    std::size_t spokeCount)
     {
@@ -1912,6 +2107,11 @@ int main()
             if (ImGui::Button("Material regions"))
             {
                 loadMaterialRegions();
+            }
+            ImGui::TextDisabled("Particle artwork");
+            if (ImGui::Button("Particle apple"))
+            {
+                loadParticleApple();
             }
             ImGui::TextDisabled("Point fields");
             if (ImGui::Button("Attractor"))
