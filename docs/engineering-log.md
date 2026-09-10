@@ -725,6 +725,31 @@ Group identity describes which logical part of an artwork a particle belongs to,
 
 The project builds without warnings and all six automated suites pass. The body-dynamics suite now includes a regression test proving that fixed particles remain stationary under velocity, acceleration, and applied force.
 
+## 2026-09-10 — Region-based connection breaking
+
+### Goal
+
+Allow users to detach physical regions with one continuous gesture, supporting future leaf shedding, erosion, and interactive particle sculpting.
+
+### Implementation
+
+- A Cut connections interaction tool uses an adjustable circular brush from 5 to 60 pixels.
+- Pressing and dragging continuously tests every live connection against the brush and removes intersecting connections.
+- Distance-to-segment testing cuts a line when the brush overlaps any point along it, rather than requiring the cursor to hit an endpoint.
+- Cutting never deletes particles or changes their material, group, velocity, or remaining connections, allowing severed pieces to continue moving naturally.
+- The tool works identically with elastic springs and rigid distance constraints because both reuse the same connection graph.
+- A visible translucent brush outline shows the affected region in both Laboratory and Canvas modes.
+- A counter reports manually cut connections separately from automatic strain failures.
+- Restart restores the saved connection graph and clears the cut count; loading a new connected structure also clears the count.
+
+### Engineering significance
+
+The tool changes network topology at runtime while avoiding invalid particle indices. This is the minimum interaction needed to detach clusters from future layered artwork without introducing deletion or drawing systems prematurely.
+
+### Verification
+
+The project builds without warnings and all six automated physics suites pass. Final verification requires dragging the brush through connected presets and confirming that Restart restores their original topology.
+
 ## 2026-09-02 — Breakable spring materials
 
 ### Goal

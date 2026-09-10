@@ -66,6 +66,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Direct spring-versus-constraint comparison using the Constraint lattice preset
 - Structural, flexible, fragile, and fixed particle materials with region IDs
 - Material-aware wind, field response, colouring, and connection failure
+- Adjustable region-cutting brush that severs connections without deleting particles
 
 ## Requirements
 

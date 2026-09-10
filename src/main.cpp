@@ -150,6 +150,32 @@ bool containsPoint(const CircleView& view, sf::Vector2f point)
         view.body.radius * view.body.radius;
 }
 
+float distanceSquaredToSegment(
+    sf::Vector2f point,
+    sf::Vector2f start,
+    sf::Vector2f end
+)
+{
+    const sf::Vector2f segment = end - start;
+    const float lengthSquared =
+        segment.x * segment.x + segment.y * segment.y;
+    if (lengthSquared <= 0.000001f)
+    {
+        const sf::Vector2f difference = point - start;
+        return difference.x * difference.x + difference.y * difference.y;
+    }
+    const sf::Vector2f fromStart = point - start;
+    const float projection = std::clamp(
+        (fromStart.x * segment.x + fromStart.y * segment.y) /
+            lengthSquared,
+        0.f,
+        1.f
+    );
+    const sf::Vector2f nearest = start + segment * projection;
+    const sf::Vector2f difference = point - nearest;
+    return difference.x * difference.x + difference.y * difference.y;
+}
+
 std::optional<std::size_t> findBodyAt(
     const std::vector<CircleView>& bodies,
     sf::Vector2f point
@@ -460,6 +486,7 @@ int main()
     bool showControls = true;
     bool placingPointField = false;
     bool draggingPointField = false;
+    bool cuttingConnections = false;
     std::size_t canvasPalette = 0;
     std::vector<PointField> pointFields;
     std::optional<std::size_t> selectedPointField;
@@ -499,6 +526,8 @@ int main()
     bool breakableSprings = false;
     float springBreakingStrain = 0.65f;
     std::size_t brokenSpringCount = 0;
+    std::size_t cutConnectionCount = 0;
+    float connectionCutRadius = 18.f;
     int generatedChainCount = 80;
     int generatedLatticeColumns = 12;
     int generatedLatticeRows = 8;
@@ -653,6 +682,7 @@ int main()
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
+        cutConnectionCount = 0;
         constexpr float RADIUS = 5.f;
         const float spacing = generatedStructureSpacing;
         const std::size_t columns = std::max(
@@ -721,6 +751,7 @@ int main()
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
+        cutConnectionCount = 0;
         constexpr float RADIUS = 5.f;
         const float spacing = std::min({
             generatedStructureSpacing,
@@ -842,6 +873,7 @@ int main()
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
+        cutConnectionCount = 0;
         constexpr float PI = 3.14159265359f;
         const sf::Vector2f center(400.f, 270.f);
         const float ringSpacing = 220.f / static_cast<float>(ringCount);
@@ -939,6 +971,33 @@ int main()
         selectedBody.reset();
         draggedBody.reset();
         firstSpringBody.reset();
+    };
+
+    const auto cutConnectionsAt = [&](sf::Vector2f position)
+    {
+        const std::size_t connectionCountBefore = springs.size();
+        const float radiusSquared =
+            connectionCutRadius * connectionCutRadius;
+        springs.erase(
+            std::remove_if(
+                springs.begin(), springs.end(),
+                [&](const physics::Spring& connection)
+                {
+                    if (connection.first >= bodies.size() ||
+                        connection.second >= bodies.size())
+                    {
+                        return false;
+                    }
+                    return distanceSquaredToSegment(
+                        position,
+                        bodies[connection.first].body.center(),
+                        bodies[connection.second].body.center()
+                    ) <= radiusSquared;
+                }
+            ),
+            springs.end()
+        );
+        cutConnectionCount += connectionCountBefore - springs.size();
     };
 
     const auto rebalancePercentages = [](
@@ -1354,6 +1413,8 @@ int main()
                     draggingPointField = false;
                     selectedBody.reset();
                     draggedBody.reset();
+                    cuttingConnections = false;
+                    cutConnectionCount = 0;
                     paused = false;
                     accumulator = 0.f;
                     simulationTime = 0.f;
@@ -1459,6 +1520,11 @@ int main()
                             pulseChargeSensitive
                         });
                     }
+                    else if (interactionTool == 4)
+                    {
+                        cuttingConnections = true;
+                        cutConnectionsAt(mousePosition);
+                    }
                     else if (interactionTool == 0)
                     {
                         selectedBody = findBodyAt(bodies, mousePosition);
@@ -1506,6 +1572,10 @@ int main()
             if (const auto* mouseReleased =
                     event->getIf<sf::Event::MouseButtonReleased>())
             {
+                if (mouseReleased->button == sf::Mouse::Button::Left)
+                {
+                    cuttingConnections = false;
+                }
                 if (
                     mouseReleased->button == sf::Mouse::Button::Left &&
                     draggingPointField
@@ -1582,6 +1652,8 @@ int main()
             bodies = restartBodies;
             springs = restartSprings;
             brokenSpringCount = 0;
+            cutConnectionCount = 0;
+            cuttingConnections = false;
             pointFields.erase(
                 std::remove_if(
                     pointFields.begin(), pointFields.end(),
@@ -1928,6 +2000,29 @@ int main()
             {
                 placingPointField = false;
                 draggingPointField = false;
+            }
+            if (ImGui::RadioButton("Cut connections", &interactionTool, 4))
+            {
+                placingPointField = false;
+                draggingPointField = false;
+                draggedBody.reset();
+            }
+
+            if (interactionTool != 4)
+            {
+                cuttingConnections = false;
+            }
+
+            if (interactionTool == 4)
+            {
+                ImGui::SliderFloat(
+                    "Cut brush radius", &connectionCutRadius,
+                    5.f, 60.f, "%.0f px"
+                );
+                ImGui::Text("Connections cut: %zu", cutConnectionCount);
+                ImGui::TextDisabled(
+                    "Drag through connection lines; R restores them"
+                );
             }
 
             if (interactionTool == 1)
@@ -2382,6 +2477,13 @@ int main()
                 toWorldPosition(sf::Mouse::getPosition(window));
         }
 
+        if (cuttingConnections && interactionTool == 4)
+        {
+            cutConnectionsAt(
+                toWorldPosition(sf::Mouse::getPosition(window))
+            );
+        }
+
         if (draggedBody && *draggedBody < bodies.size())
         {
             const sf::Vector2f mousePosition =
@@ -2532,6 +2634,25 @@ int main()
             }
         };
 
+        const auto drawCutBrush = [&]()
+        {
+            if (interactionTool != 4 || ImGui::GetIO().WantCaptureMouse)
+            {
+                return;
+            }
+            sf::CircleShape brush(connectionCutRadius);
+            brush.setOrigin(sf::Vector2f(
+                connectionCutRadius, connectionCutRadius
+            ));
+            brush.setPosition(
+                toWorldPosition(sf::Mouse::getPosition(window))
+            );
+            brush.setFillColor(sf::Color(255, 70, 90, 30));
+            brush.setOutlineColor(sf::Color(255, 100, 120, 220));
+            brush.setOutlineThickness(2.f);
+            window.draw(brush);
+        };
+
         if (canvasMode)
         {
             const sf::Color background = canvasBackgrounds[canvasPalette];
@@ -2598,6 +2719,7 @@ int main()
                 window.draw(selectionRing);
             }
             drawPointFieldMarkers();
+            drawCutBrush();
             ImGui::SFML::Render(window);
             window.display();
             continue;
@@ -2674,6 +2796,7 @@ int main()
         }
 
         drawPointFieldMarkers();
+        drawCutBrush();
 
         ImGui::SFML::Render(window);
         window.display();
