@@ -62,6 +62,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Connected-system trails in Canvas mode and uniformly small default particles
 - Adjustable web topology, pinned-anchor selection, and a 1,200-particle full-screen lattice
 - Optional strain-based spring failure and a tearable full-screen lattice
+- Tested iterative distance constraints with adjustable stiffness and solver passes
+- Direct spring-versus-constraint comparison using the Constraint lattice preset
 
 ## Requirements
 

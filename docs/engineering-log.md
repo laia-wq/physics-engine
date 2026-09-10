@@ -674,6 +674,30 @@ Generator parameters now map directly to structure topology, reducing ambiguous 
 
 The application compiles successfully and all automated physics suites pass.
 
+## 2026-09-09 — Iterative distance constraints
+
+### Goal
+
+Add a shape-preserving connection mode needed for stable ropes and recognizable particle structures.
+
+### Implementation
+
+- A reusable physics-core distance constraint corrects two particles toward a requested separation.
+- Corrections are divided according to inverse mass, so lighter particles move farther and pinned particles remain fixed.
+- Connection stiffness controls how much of the positional error is corrected in each pass.
+- The simulation can repeat the complete constraint network from 1 to 20 times per physics step. Later passes correct errors introduced when neighbouring connections moved a shared particle.
+- Constraint-driven velocity is reconstructed from the corrected position change, allowing the positional solution to influence subsequent motion.
+- Existing chains, lattices, and webs can switch between elastic spring forces and rigid distance constraints without duplicating their topology.
+- A Constraint lattice preset provides a direct comparison with the spring-based Soft-body lattice.
+
+### Engineering significance
+
+This introduces iterative position-based constraint solving and exposes its central tradeoff: more solver passes improve shape preservation while increasing computation. Reusing the existing connection graph keeps topology separate from the method used to enforce it.
+
+### Verification
+
+A sixth automated suite verifies exact full-stiffness correction, proportional partial correction, inverse-mass handling for pinned endpoints, and safe coincident endpoints. The application builds without warnings and all six suites pass.
+
 ## 2026-09-02 — Breakable spring materials
 
 ### Goal

@@ -43,6 +43,7 @@ add_library(
     src/BroadPhase.cpp
     src/CircleBody.cpp
     src/Collision.cpp
+    src/DistanceConstraint.cpp
     src/Electrostatics.cpp
     src/Spring.cpp
 )
@@ -89,4 +90,9 @@ if(BUILD_TESTING)
     target_link_libraries(spring-tests PRIVATE physics-core)
     enable_project_warnings(spring-tests)
     add_test(NAME damped-spring-forces COMMAND spring-tests)
+
+    add_executable(distance-constraint-tests tests/DistanceConstraintTests.cpp)
+    target_link_libraries(distance-constraint-tests PRIVATE physics-core)
+    enable_project_warnings(distance-constraint-tests)
+    add_test(NAME iterative-distance-constraints COMMAND distance-constraint-tests)
 endif()

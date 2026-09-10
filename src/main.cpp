@@ -5,6 +5,7 @@
 
 #include "physics/BroadPhase.hpp"
 #include "physics/Collision.hpp"
+#include "physics/DistanceConstraint.hpp"
 #include "physics/Electrostatics.hpp"
 #include "physics/Spring.hpp"
 
@@ -433,6 +434,9 @@ int main()
     std::optional<std::size_t> firstSpringBody;
     float newSpringStiffness = 8000.f;
     float newSpringDamping = 300.f;
+    bool useDistanceConstraints = false;
+    int constraintIterations = 8;
+    float constraintStiffness = 0.9f;
     bool breakableSprings = false;
     float springBreakingStrain = 0.65f;
     std::size_t brokenSpringCount = 0;
@@ -583,6 +587,7 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         constexpr float RADIUS = 5.f;
@@ -650,6 +655,7 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         constexpr float RADIUS = 5.f;
@@ -733,6 +739,7 @@ int main()
     {
         bodies.clear();
         springs.clear();
+        useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         constexpr float PI = 3.14159265359f;
@@ -971,18 +978,41 @@ int main()
             }
         }
 
-        for (const auto& spring : springs)
+        if (!useDistanceConstraints)
         {
-            if (spring.first < bodies.size() && spring.second < bodies.size())
+            for (const auto& spring : springs)
             {
-                physics::applySpringForce(
-                    bodies[spring.first].body,
-                    bodies[spring.second].body,
-                    spring.restLength,
-                    spring.stiffness,
-                    spring.damping
-                );
+                if (spring.first < bodies.size() &&
+                    spring.second < bodies.size())
+                {
+                    physics::applySpringForce(
+                        bodies[spring.first].body,
+                        bodies[spring.second].body,
+                        spring.restLength,
+                        spring.stiffness,
+                        spring.damping
+                    );
+                }
             }
+        }
+
+        std::vector<sf::Vector2f> previousPositions;
+        if (useDistanceConstraints)
+        {
+            previousPositions.reserve(bodies.size());
+            for (const auto& view : bodies)
+            {
+                previousPositions.push_back(view.body.position);
+            }
+        }
+
+        for (std::size_t index = 0; index < bodies.size(); ++index)
+        {
+            if (draggedBody && index == *draggedBody)
+            {
+                continue;
+            }
+            bodies[index].body.integrate(FIXED_TIME_STEP);
         }
 
         if (breakableSprings)
@@ -1006,10 +1036,8 @@ int main()
                             difference.x * difference.x +
                             difference.y * difference.y
                         );
-                        const float strain =
-                            (currentLength - spring.restLength) /
-                            spring.restLength;
-                        return strain > springBreakingStrain;
+                        return (currentLength - spring.restLength) /
+                            spring.restLength > springBreakingStrain;
                     }
                 ),
                 springs.end()
@@ -1017,14 +1045,40 @@ int main()
             brokenSpringCount += connectionCountBefore - springs.size();
         }
 
-        for (std::size_t index = 0; index < bodies.size(); ++index)
+        if (useDistanceConstraints)
         {
-            if (draggedBody && index == *draggedBody)
+            for (int iteration = 0; iteration < constraintIterations;
+                 ++iteration)
             {
-                continue;
+                for (const auto& connection : springs)
+                {
+                    if (connection.first < bodies.size() &&
+                        connection.second < bodies.size())
+                    {
+                        physics::solveDistanceConstraint(
+                            bodies[connection.first].body,
+                            bodies[connection.second].body,
+                            connection.restLength,
+                            constraintStiffness
+                        );
+                    }
+                }
             }
-            bodies[index].body.integrate(FIXED_TIME_STEP);
-            bodies[index].body.resolveBounds(
+            for (std::size_t index = 0; index < bodies.size(); ++index)
+            {
+                if (bodies[index].body.inverseMass > 0.f &&
+                    (!draggedBody || index != *draggedBody))
+                {
+                    bodies[index].body.velocity =
+                        (bodies[index].body.position -
+                         previousPositions[index]) / FIXED_TIME_STEP;
+                }
+            }
+        }
+
+        for (auto& view : bodies)
+        {
+            view.body.resolveBounds(
                 windowWidth,
                 windowHeight,
                 floorFriction,
@@ -1649,6 +1703,12 @@ int main()
                     static_cast<std::size_t>(generatedLatticeRows)
                 );
             }
+            ImGui::SameLine();
+            if (ImGui::Button("Constraint lattice"))
+            {
+                loadSoftBodyLattice(20, 15);
+                useDistanceConstraints = true;
+            }
             if (ImGui::Button("Radial spring web"))
             {
                 loadRadialWeb(
@@ -1883,6 +1943,21 @@ int main()
             ))
         {
             ImGui::Text("Connections: %zu", springs.size());
+            ImGui::Checkbox(
+                "Use rigid distance constraints", &useDistanceConstraints
+            );
+            ImGui::BeginDisabled(!useDistanceConstraints);
+            ImGui::SliderInt(
+                "Solver iterations", &constraintIterations, 1, 20
+            );
+            ImGui::SliderFloat(
+                "Constraint stiffness", &constraintStiffness,
+                0.1f, 1.f, "%.2f"
+            );
+            ImGui::TextDisabled(
+                "More iterations preserve shape but require more work"
+            );
+            ImGui::EndDisabled();
             ImGui::Checkbox("Breakable connections", &breakableSprings);
             ImGui::BeginDisabled(!breakableSprings);
             ImGui::SliderFloat(
