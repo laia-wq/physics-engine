@@ -48,10 +48,68 @@ struct PointField
     bool chargeSensitive = false;
 };
 
+enum class ParticleMaterial
+{
+    Structural,
+    Flexible,
+    Fragile,
+    Fixed
+};
+
+const char* materialName(ParticleMaterial material)
+{
+    switch (material)
+    {
+        case ParticleMaterial::Structural: return "Structural";
+        case ParticleMaterial::Flexible: return "Flexible";
+        case ParticleMaterial::Fragile: return "Fragile";
+        case ParticleMaterial::Fixed: return "Fixed";
+    }
+    return "Unknown";
+}
+
+float materialForceResponse(ParticleMaterial material)
+{
+    switch (material)
+    {
+        case ParticleMaterial::Structural: return 0.35f;
+        case ParticleMaterial::Flexible: return 1.f;
+        case ParticleMaterial::Fragile: return 1.4f;
+        case ParticleMaterial::Fixed: return 0.f;
+    }
+    return 1.f;
+}
+
+float materialBreakingScale(ParticleMaterial material)
+{
+    switch (material)
+    {
+        case ParticleMaterial::Structural: return 1.6f;
+        case ParticleMaterial::Flexible: return 1.f;
+        case ParticleMaterial::Fragile: return 0.4f;
+        case ParticleMaterial::Fixed: return 1.6f;
+    }
+    return 1.f;
+}
+
+sf::Color materialColor(ParticleMaterial material)
+{
+    switch (material)
+    {
+        case ParticleMaterial::Structural: return sf::Color(90, 145, 255);
+        case ParticleMaterial::Flexible: return sf::Color(80, 235, 180);
+        case ParticleMaterial::Fragile: return sf::Color(255, 120, 185);
+        case ParticleMaterial::Fixed: return sf::Color(255, 210, 70);
+    }
+    return sf::Color::White;
+}
+
 struct CircleView
 {
     physics::CircleBody body;
     sf::CircleShape shape;
+    ParticleMaterial material = ParticleMaterial::Flexible;
+    int groupId = 0;
 
     CircleView(
         float radius,
@@ -411,6 +469,7 @@ int main()
     float pulseDuration = 1.f;
     bool pulseChargeSensitive = false;
     bool colorByCharge = false;
+    bool colorByMaterial = false;
     constexpr float FIELD_SOFTENING = 35.f;
     float floorFriction = 0.98f;
     float spawnRadius = 5.f;
@@ -455,8 +514,9 @@ int main()
     std::size_t electrostaticPairChecks = 0;
     double physicsStepMilliseconds = 0.0;
 
-    const auto pointFieldAcceleration = [&](const physics::CircleBody& body)
+    const auto pointFieldAcceleration = [&](const CircleView& view)
     {
+        const auto& body = view.body;
         sf::Vector2f totalAcceleration(0.f, 0.f);
         for (const auto& field : pointFields)
         {
@@ -476,9 +536,10 @@ int main()
             const float oscillation = 1.f + field.oscillationAmount *
                 std::sin(2.f * PI * field.oscillationFrequency * simulationTime);
             constexpr float VISUAL_FIELD_RESPONSE = 12.f;
-            const float response = field.chargeSensitive
+            const float response = (field.chargeSensitive
                 ? body.charge * body.inverseMass * 400.f
-                : VISUAL_FIELD_RESPONSE;
+                : VISUAL_FIELD_RESPONSE) *
+                materialForceResponse(view.material);
             totalAcceleration +=
                 direction * (field.radialStrength * oscillation * response /
                     softenedDistanceSquared) +
@@ -488,8 +549,9 @@ int main()
         return totalAcceleration;
     };
 
-    const auto windAcceleration = [&](const physics::CircleBody& body)
+    const auto windAcceleration = [&](const CircleView& view)
     {
+        const auto& body = view.body;
         if (!windEnabled || body.inverseMass <= 0.f)
         {
             return sf::Vector2f(0.f, 0.f);
@@ -498,7 +560,8 @@ int main()
         // In 2D, exposed width grows with radius while default mass grows
         // with radius squared. Small circles therefore respond more strongly.
         const float aerodynamicResponse =
-            2.f * body.radius * body.inverseMass * windSensitivity;
+            2.f * body.radius * body.inverseMass * windSensitivity *
+            materialForceResponse(view.material);
         return sf::Vector2f(windForce[0], windForce[1]) * aerodynamicResponse;
     };
 
@@ -734,6 +797,43 @@ int main()
         simulationTime = 0.f;
     };
 
+    const auto loadMaterialRegions = [&]()
+    {
+        constexpr std::size_t COLUMNS = 30;
+        constexpr std::size_t ROWS = 20;
+        loadSoftBodyLattice(COLUMNS, ROWS);
+        for (std::size_t index = 0; index < bodies.size(); ++index)
+        {
+            const std::size_t row = index / COLUMNS;
+            if (row < ROWS / 3)
+            {
+                bodies[index].material = ParticleMaterial::Structural;
+                bodies[index].groupId = 1;
+            }
+            else if (row < 2 * ROWS / 3)
+            {
+                bodies[index].material = ParticleMaterial::Flexible;
+                bodies[index].groupId = 2;
+            }
+            else
+            {
+                bodies[index].material = ParticleMaterial::Fragile;
+                bodies[index].groupId = 3;
+            }
+        }
+        bodies[0].material = ParticleMaterial::Fixed;
+        bodies[COLUMNS - 1].material = ParticleMaterial::Fixed;
+        useDistanceConstraints = true;
+        breakableSprings = true;
+        colorByMaterial = true;
+        colorByCharge = false;
+        windEnabled = true;
+        windForce[0] = 700.f;
+        windForce[1] = 0.f;
+        restartBodies = bodies;
+        restartSprings = springs;
+    };
+
     const auto loadRadialWeb = [&](std::size_t ringCount,
                                    std::size_t spokeCount)
     {
@@ -955,9 +1055,9 @@ int main()
                 ? sf::Vector2f(gravityField[0], gravityField[1])
                 : sf::Vector2f(0.f, 0.f);
             bodies[index].body.acceleration +=
-                pointFieldAcceleration(bodies[index].body);
+                pointFieldAcceleration(bodies[index]);
             bodies[index].body.acceleration +=
-                windAcceleration(bodies[index].body);
+                windAcceleration(bodies[index]);
         }
 
         if (mutualElectrostaticsEnabled)
@@ -1036,8 +1136,17 @@ int main()
                             difference.x * difference.x +
                             difference.y * difference.y
                         );
+                        const float materialScale = std::min(
+                            materialBreakingScale(
+                                bodies[spring.first].material
+                            ),
+                            materialBreakingScale(
+                                bodies[spring.second].material
+                            )
+                        );
                         return (currentLength - spring.restLength) /
-                            spring.restLength > springBreakingStrain;
+                            spring.restLength >
+                            springBreakingStrain * materialScale;
                     }
                 ),
                 springs.end()
@@ -1728,6 +1837,10 @@ int main()
                 breakableSprings = true;
                 brokenSpringCount = 0;
             }
+            if (ImGui::Button("Material regions"))
+            {
+                loadMaterialRegions();
+            }
             ImGui::TextDisabled("Point fields");
             if (ImGui::Button("Attractor"))
             {
@@ -1871,8 +1984,8 @@ int main()
                     (gravityEnabled
                         ? sf::Vector2f(gravityField[0], gravityField[1])
                         : sf::Vector2f(0.f, 0.f)) +
-                    windAcceleration(selected) +
-                    pointFieldAcceleration(selected);
+                    windAcceleration(bodies[*selectedBody]) +
+                    pointFieldAcceleration(bodies[*selectedBody]);
                 ImGui::Text("Mass: %.1f", mass);
                 ImGui::Text("Position: (%.1f, %.1f)", center.x, center.y);
                 ImGui::Text(
@@ -1891,12 +2004,55 @@ int main()
                     selected.restitution
                 );
                 ImGui::Text("Charge: %+.1f", selected.charge);
+                ImGui::Text(
+                    "Material: %s  Group: %d",
+                    materialName(bodies[*selectedBody].material),
+                    bodies[*selectedBody].groupId
+                );
+                constexpr const char* MATERIAL_NAMES[] = {
+                    "Structural", "Flexible", "Fragile", "Fixed"
+                };
+                int materialIndex = static_cast<int>(
+                    bodies[*selectedBody].material
+                );
+                if (ImGui::Combo(
+                        "Particle material", &materialIndex,
+                        MATERIAL_NAMES, 4
+                    ))
+                {
+                    auto& selectedView = bodies[*selectedBody];
+                    selectedView.material = static_cast<ParticleMaterial>(
+                        materialIndex
+                    );
+                    if (selectedView.material == ParticleMaterial::Fixed)
+                    {
+                        selectedView.body.inverseMass = 0.f;
+                    }
+                    else if (selectedView.body.inverseMass == 0.f)
+                    {
+                        selectedView.body.inverseMass = 1.f /
+                            (selectedView.body.radius * selectedView.body.radius);
+                    }
+                    restartBodies = bodies;
+                }
+                if (ImGui::InputInt(
+                        "Particle group",
+                        &bodies[*selectedBody].groupId
+                    ))
+                {
+                    bodies[*selectedBody].groupId = std::max(
+                        bodies[*selectedBody].groupId, 0
+                    );
+                    restartBodies = bodies;
+                }
                 ImGui::Text("Pinned: %s", inverseMass == 0.f ? "yes" : "no");
                 if (inverseMass > 0.f)
                 {
                     if (ImGui::Button("Pin selected"))
                     {
                         bodies[*selectedBody].body.inverseMass = 0.f;
+                        bodies[*selectedBody].material =
+                            ParticleMaterial::Fixed;
                         restartBodies = bodies;
                     }
                 }
@@ -1905,6 +2061,12 @@ int main()
                     const float radius = bodies[*selectedBody].body.radius;
                     bodies[*selectedBody].body.inverseMass =
                         1.f / (radius * radius);
+                    if (bodies[*selectedBody].material ==
+                        ParticleMaterial::Fixed)
+                    {
+                        bodies[*selectedBody].material =
+                            ParticleMaterial::Flexible;
+                    }
                     restartBodies = bodies;
                 }
                 ImGui::SameLine();
@@ -2086,7 +2248,16 @@ int main()
 
         if (ImGui::CollapsingHeader("Debug visualization"))
         {
-            ImGui::Checkbox("Colour by charge", &colorByCharge);
+            if (ImGui::Checkbox("Colour by charge", &colorByCharge) &&
+                colorByCharge)
+            {
+                colorByMaterial = false;
+            }
+            if (ImGui::Checkbox("Colour by material", &colorByMaterial) &&
+                colorByMaterial)
+            {
+                colorByCharge = false;
+            }
             ImGui::Checkbox("Velocity vectors", &showVelocityVectors);
             ImGui::Checkbox("Contact points", &showContacts);
             ImGui::Checkbox("Collision normals", &showCollisionNormals);
@@ -2272,7 +2443,9 @@ int main()
                 : (view.body.charge < -0.1f
                     ? sf::Color(70, 170, 255)
                     : sf::Color::White);
-            view.shape.setFillColor(colorByCharge ? chargeColor : sf::Color::White);
+            view.shape.setFillColor(colorByMaterial
+                ? materialColor(view.material)
+                : (colorByCharge ? chargeColor : sf::Color::White));
             view.shape.setOutlineColor(sf::Color(255, 215, 70));
             view.shape.setOutlineThickness(
                 view.body.inverseMass == 0.f ? 3.f : 0.f
@@ -2381,7 +2554,13 @@ int main()
             for (std::size_t index = 0; index < bodies.size(); ++index)
             {
                 sf::CircleShape canvasShape = bodies[index].shape;
-                if (colorByCharge && bodies[index].body.charge > 0.1f)
+                if (colorByMaterial)
+                {
+                    canvasShape.setFillColor(
+                        materialColor(bodies[index].material)
+                    );
+                }
+                else if (colorByCharge && bodies[index].body.charge > 0.1f)
                 {
                     canvasShape.setFillColor(sf::Color(255, 90, 130));
                 }

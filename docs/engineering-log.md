@@ -698,6 +698,33 @@ This introduces iterative position-based constraint solving and exposes its cent
 
 A sixth automated suite verifies exact full-stiffness correction, proportional partial correction, inverse-mass handling for pinned endpoints, and safe coincident endpoints. The application builds without warnings and all six suites pass.
 
+## 2026-09-10 — Particle groups and material regions
+
+### Goal
+
+Allow one connected particle scene to contain regions with different physical roles, providing the foundation for trunks, branches, leaves, foreground objects, and fixed backgrounds.
+
+### Implementation
+
+- Every displayed particle now stores a material and a non-negative group identifier alongside its physics body.
+- Structural particles receive 35 percent of ordinary wind and field response and tolerate 1.6 times the global breaking strain.
+- Flexible particles use the normal environmental response and breaking threshold.
+- Fragile particles receive 140 percent environmental response and break at 40 percent of the global threshold.
+- Fixed particles receive no environmental response and have zero inverse mass.
+- A connection joining different materials uses the more fragile endpoint's failure scale.
+- Selected particles expose editable material and group controls. Pinning assigns Fixed material, while unpinning a Fixed particle restores Flexible material.
+- Material colouring is mutually exclusive with charge colouring and works in both Laboratory and Canvas rendering.
+- The Material regions preset creates structural, flexible, and fragile bands in one constrained lattice, with two fixed anchors, breakable connections, and horizontal wind.
+- Core integration now guarantees that zero-inverse-mass particles ignore velocity, acceleration, and accumulated force.
+
+### Engineering significance
+
+Group identity describes which logical part of an artwork a particle belongs to, while material describes how that part behaves. Keeping those concepts separate will let a future tree contain several leaf groups that all share the same fragile material, or several structural objects with different identities.
+
+### Verification
+
+The project builds without warnings and all six automated suites pass. The body-dynamics suite now includes a regression test proving that fixed particles remain stationary under velocity, acceleration, and applied force.
+
 ## 2026-09-02 — Breakable spring materials
 
 ### Goal

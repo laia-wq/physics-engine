@@ -62,6 +62,19 @@ int main()
     expect(nearlyEqual(forcedBody.velocity.x, 1.f),
            "a cleared force is not applied again on the next step");
 
+    physics::CircleBody fixedBody(
+        2.f, {3.f, 4.f}, {10.f, 20.f}, {0.f, 500.f}, 0.5f
+    );
+    fixedBody.inverseMass = 0.f;
+    fixedBody.applyForce({1000.f, 1000.f});
+    fixedBody.integrate(1.f);
+    expect(nearlyEqual(fixedBody.position.x, 3.f) &&
+               nearlyEqual(fixedBody.position.y, 4.f),
+           "a fixed body ignores velocity, acceleration, and force");
+    expect(nearlyEqual(fixedBody.velocity.x, 0.f) &&
+               nearlyEqual(fixedBody.velocity.y, 0.f),
+           "a fixed body cannot retain motion");
+
     physics::CircleBody wallBody(
         1.f, {9.f, 2.f}, {4.f, 0.f}, {0.f, 0.f}, 0.5f
     );

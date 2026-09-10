@@ -64,6 +64,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Optional strain-based spring failure and a tearable full-screen lattice
 - Tested iterative distance constraints with adjustable stiffness and solver passes
 - Direct spring-versus-constraint comparison using the Constraint lattice preset
+- Structural, flexible, fragile, and fixed particle materials with region IDs
+- Material-aware wind, field response, colouring, and connection failure
 
 ## Requirements
 

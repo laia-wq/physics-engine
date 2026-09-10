@@ -23,6 +23,12 @@ CircleBody::CircleBody(
 
 void CircleBody::integrate(float timeStep)
 {
+    if (inverseMass <= 0.f)
+    {
+        velocity = sf::Vector2f(0.f, 0.f);
+        clearForces();
+        return;
+    }
     const sf::Vector2f forceAcceleration = accumulatedForce * inverseMass;
     velocity += (acceleration + forceAcceleration) * timeStep;
     position += velocity * timeStep;
