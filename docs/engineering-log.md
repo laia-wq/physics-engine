@@ -768,6 +768,7 @@ Prove that a recognizable, depth-styled image can be generated as a connected ph
 - Both mesh axes use nonlinear projection: connections are longest across the visible front and progressively shorten toward the sides, top, and bottom. A small oblique offset bends the grid asymmetrically, strengthening the impression of a surface viewed in perspective.
 - The projected width includes a deliberate upper-shoulder bulge, lower-half taper, and stronger central top notch so perspective variation does not erase the recognizable apple silhouette.
 - After comparison with a front-view photographic reference, the procedural oval was replaced by an interpolated width profile: shallow stem cavity, broad upper-middle shoulders, sustained side fullness, and a quicker lower taper. The top notch was reduced and a subtle blossom-end dimple was added.
+- The terminal profile widths remain open instead of collapsing toward a point, producing the flatter stem and blossom ends visible across multiple apple references.
 - The scene uses distance constraints to preserve the silhouette while remaining responsive to fields, wind, dragging, and connection cutting.
 
 ### Engineering significance
@@ -777,6 +778,34 @@ The important step is the conversion from a parameterized form to particles, mat
 ### Verification
 
 The project builds without warnings and all six automated physics suites pass. Visual verification should confirm that the mesh reads as rounded before it moves, remains stable after Restart, and responds to existing fields and the cutting brush.
+
+## 2026-09-10 — Windblown tree prototype
+
+### Goal
+
+Apply the particle-art structure to a recognizable landscape subject whose form and motion both communicate physical forces.
+
+### Implementation
+
+- Multiple windswept-tree and branch-silhouette references were compared before construction. Shared features include a low asymmetrical canopy, trunk lean, and branches extending with the prevailing wind.
+- A six-row hill mesh compresses particle spacing toward its sides, expands it near the viewer, and uses unequal depth bands. Its lower row is anchored.
+- The trunk consists of five tapering, diagonally connected strands with nonlinear spacing across and along its surface. Several internal structural anchors prevent the trunk from swaying like grass.
+- Five major branches grow from different trunk heights as tapered three-strand meshes. Their segment lengths change along each branch rather than forming uniform chains.
+- Each branch supports a denser curved leaf mesh with its own group identifier and Fragile material. Deliberate internal gaps and separation between clusters use negative space to reveal branches and break up the canopy.
+- Foliage was revised after broader reference comparison: smaller particle marks occupy substantially larger projected clusters, several holes are explicitly carved from each cluster, and only alternating diagonals are connected. The result prioritizes open sprays and visible branch gaps over solid oval nets.
+- Major branch meshes receive fixed support points every four segments. This keeps their structural silhouette nearly stationary while fragile foliage remains free to deform under a gentler default wind.
+- The canopy now uses sixteen differently sized sprays distributed along the interiors and tips of all five branches, instead of limiting foliage to five endpoints.
+- Deterministic multi-frequency curves vary the trunk centreline, taper, branch direction, and segment length. This removes mirror-like regularity while keeping Restart reproducible.
+- The scene begins with gentle horizontal wind. Material response keeps the hill fixed, moves the structural wood moderately, and moves fragile foliage most strongly.
+- Existing connection cutting can detach portions of foliage without adding a separate tree-only interaction.
+
+### Engineering significance
+
+One connection solver now represents terrain, tapered structural members, branching topology, and deformable foliage. Material response creates differential motion from one global force, while groups preserve semantic regions for later scene tools.
+
+### Verification
+
+Build and run all automated suites. Visually confirm that the stationary scene reads as a tree on a hill, foliage moves more than the trunk, the structure remains stable under its default wind, cutting can detach leaves, and Restart reconstructs the complete scene.
 
 ## 2026-09-02 — Breakable spring materials
 

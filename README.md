@@ -68,6 +68,7 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Material-aware wind, field response, colouring, and connection failure
 - Adjustable region-cutting brush that severs connections without deleting particles
 - Curved particle-mesh apple whose spacing and automatic neighbour connections create its depth cues
+- Detailed windblown tree with nonuniform terrain, tapered trunk and branch meshes, and negative-space foliage
 
 ## Requirements
 
