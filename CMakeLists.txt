@@ -45,6 +45,7 @@ add_library(
     src/Collision.cpp
     src/DistanceConstraint.cpp
     src/Electrostatics.cpp
+    src/MathematicalSurface.cpp
     src/PointField.cpp
     src/Spring.cpp
 )

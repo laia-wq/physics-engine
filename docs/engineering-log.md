@@ -2,6 +2,17 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-12 — Extract mathematical surface geometry
+
+- Moved the equations and projection rules for the torus, heart, Mobius strip, sphere, wave, double well, and spacetime well into a dedicated mathematical-surface module.
+- Centralized each surface's grid dimensions and edge-wrapping rules alongside its geometry.
+- Kept particle creation and spring connections in the preset layer, separating the question "where is this 3D point projected?" from "how is it represented by the physics engine?"
+- Reduced `main.cpp` from approximately 4,800 to 4,677 lines without changing the preset controls or appearance.
+
+### Engineering significance
+
+The mathematical formulas no longer live inside the application loop. They can now be understood, reused, and tested independently while the preset loader remains responsible for turning projected points into connected particles.
+
 ## 2026-09-12 — Extract and test point-field physics
 
 - Moved the point-field data model and acceleration calculation out of the interface-heavy `main.cpp` and into `physics-core`.

@@ -110,7 +110,7 @@ folder. Press `C` before `F12` for a clean scene without control windows.
 
 ## Architecture
 
-The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, and point-field forces. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation logic testable without opening a window.
+The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, point-field forces, and mathematical-surface projection. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation logic testable without opening a window.
 
 ## Engineering notes
 
