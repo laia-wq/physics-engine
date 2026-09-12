@@ -69,6 +69,10 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Adjustable region-cutting brush that severs connections without deleting particles
 - Curved particle-mesh apple whose spacing and automatic neighbour connections create its depth cues
 - Detailed windblown tree with nonuniform terrain, tapered trunk and branch meshes, and negative-space foliage
+- Reference-driven wireframe portrait shaped by measured landmarks, stretched facial planes, and negative-space features
+- Full-screen projected 3D wireframe terrain with an elevated perspective camera and continuous hills, ridges, and valleys
+- Rigid 3D wireframe buildings with terrain-following foundations, precise terrain occlusion, stretched roof and side meshes, and visible window grids
+- A smooth winding central path with individually curved access branches to every building
 
 ## Requirements
 

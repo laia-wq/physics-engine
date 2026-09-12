@@ -807,6 +807,86 @@ One connection solver now represents terrain, tapered structural members, branch
 
 Build and run all automated suites. Visually confirm that the stationary scene reads as a tree on a hill, foliage moves more than the trunk, the structure remains stable under its default wind, cutting can detach leaves, and Restart reconstructs the complete scene.
 
+## 2026-09-11 — Reference-driven wireframe portrait
+
+### Goal
+
+Test whether recognizable human form can emerge from connection direction, unequal spacing, facial planes, and negative space rather than colour or uniformly dense particles.
+
+### Implementation
+
+- One hundred real front-view portrait thumbnails were reviewed to establish the range of natural facial variation. The generic average was then rejected in favour of the user-provided reference photograph.
+- Landmark proportions were measured from that reference: crown, hairline, temples, eye and brow centres, nose, nostrils, lips, cheek width, jaw corners, chin, neck, and shoulder spread.
+- A nonlinear head-width profile follows the subject's high cheekbones, narrow lower jaw, rounded chin, and close pulled-back hairline.
+- Subtle deterministic asymmetry replaces the earlier artificial three-quarter projection while connection rows continue to bend around facial volume.
+- Local mathematical deformations stretch topology around the brow, cheek planes, nose bridge, and lips instead of representing those features with additional colour.
+- Elliptical negative spaces interrupt the mesh at the eyebrows, eyes, nostrils, and mouth, causing neighbouring connection loops to outline the reference features.
+- Alternating diagonals reduce visual filling and help the horizontal and vertical facial flow remain readable.
+- A widening neck-and-shoulder mesh anchors the portrait and continues the stretched-spacing language below the face.
+
+### Engineering significance
+
+The portrait is a reference-driven topology experiment rather than a pixel conversion. Semantic landmarks alter a reusable mesh, demonstrating how geometry and connectivity can encode a specific coherent face without textures.
+
+### Verification
+
+Build and run all automated tests. Visually inspect the stationary portrait before applying forces: head silhouette, eye placement, nose bridge, mouth, jaw, and near-versus-far cheek spacing should remain readable. Then verify controlled deformation, cutting, Canvas mode, and Restart.
+
+## 2026-09-11 — Projected 3D wireframe terrain
+
+### Goal
+
+Create a real three-dimensional terrain surface and project it into the engine's two-dimensional physics world.
+
+### Implementation
+
+- A 45-by-20 terrain surface is defined using world-space horizontal, height, and depth coordinates, retaining the landscape silhouette without oversampling the simulation.
+- A perspective-camera calculation projects every 3D vertex into a 2D screen position.
+- Broad mountains, a middle ridge, a valley, and restrained undulations combine into one continuous height field.
+- Horizontal contour lines and depth lines form a clean quadrilateral grid; diagonal edges are omitted because they obscured the projected mountain slopes.
+- Vertex size changes with depth, reinforcing the perspective projection.
+- The whole terrain uses one Structural material so geometry, rather than colour bands, communicates depth and fields deform it gently.
+- Seven constraint passes replace the original fourteen; together with the lower mesh density, this reduces the terrain's constraint workload to roughly one quarter of the first projected version.
+- The sampled world-space width expands with depth to represent a broad ground plane inside the camera view. Projected rows retain modest convergence while filling the sides of the frame, and every vertex remains within x=36..764.
+- Broad overlapping ridges and foothills span the full normalized width, while much weaker high-frequency variation keeps their contours readable.
+- Three shorter, wider hills occupy the middle and foreground, creating overlapping depth layers without competing with the distant mountain silhouettes.
+- Removed the separately generated side and bottom extensions after visual testing revealed mismatched cell proportions and visible seams.
+- The primary terrain is now one 49-by-25 surface spanning almost the full frame. Its nearest rows smoothly fade their elevation into the fixed bottom row, so the middle, sides, and foreground use identical topology and spacing rules.
+- Broad side and near-distance hills remain part of this continuous height field, while the central ridge stays lower and wider.
+- Raised the virtual camera from 300 to 380 world units and compensated the horizon so the foreground still meets the bottom edge. This reveals more of the ground from an elevated, oblique viewpoint rather than looking horizontally across it.
+- Broadened and strengthened two middle-distance hills and the foreground rise so terrain relief continues visibly from the distant mountains toward the viewer.
+- Added three substantial near-ground hills across the left, centre, and right. Elevation now fades only across the final two foreground rows instead of flattening the lower quarter of the mesh.
+- Added depth- and height-dependent lateral displacement so front-to-back grid lines curve around hills instead of remaining vertical. The displacement fades to zero at both outer boundaries to preserve the full-frame surface.
+- Replaced linear depth sampling with projected-screen spacing, eliminating the dense horizon/giant foreground-cell imbalance.
+- Replaced generic lateral waviness with radial deformation from five actual hills. Depth lines now bow outward on either side of each hill centre and return as the hill falls away, so both grid directions describe the same landforms.
+- Expanded the terrain from 25 to 39 depth rows, giving near-ground hills enough intermediate contours to rise smoothly before the fixed bottom row.
+- Raised the camera to 722 world units and moved the projection horizon above the window. The far ground now begins near the top of the frame while the foreground remains at the bottom, producing one continuous full-screen terrain view.
+- Reduced constraint passes from seven to six, keeping the denser foreground at approximately the same solver cost.
+- Strengthened and broadened three near hills, increased their radial line deformation, and limited flattening to the final two rows so middle and bottom relief is easier to read in both grid directions.
+- Replaced the forced-flat final row with a gradual foreground transition that retains 32% of its terrain height at the nearest edge, allowing the landscape to end slightly above the screen rather than producing long straight pillars.
+- Increased depth resolution from 39 to 45 rows while reducing constraint passes from six to five, improving bottom contour spacing without increasing approximate solver work.
+- Extended radial deformation to the foreground and both side hills so depth lines continue curving through the lower landscape.
+- Increased middle and near hill heights by roughly 30-40% and narrowed their footprints moderately, producing clearer peaks and valleys comparable to the distant mountains without changing the full-screen mesh spacing.
+- Added ten separated wireframe buildings at different depths and heights, including a denser foreground row. Buildings are fixed architectural structures with straight lines; each follows the terrain along its foundation and uses stretched roof and side grids to create a 3D volume.
+- Replaced rectangular building occluders with convex outlines traced from each building's actual particles, removing the oversized blank regions around their silhouettes.
+- Expanded the city to twelve buildings in staggered background and foreground rows, moving architecture away from the most distorted outer terrain columns and increasing visible side depth.
+- Replaced the wide path with one continuous curved route that visits the buildings in a serpentine order and terminates at their entrances rather than passing beneath them.
+- Varied facade widths and increased roof depth to three divisions, making the front, side, and roof planes more distinct without relying on different colours.
+- Removed four narrow buildings whose three visible planes did not read clearly. Replaced the building-to-building route with a central zigzag and a separate access branch terminating at each remaining entrance.
+- Rebuilt the city-path layout around a protected central corridor: ten wide, clearly three-sided buildings occupy left and right clusters, a densely sampled main path curves through the middle, and quadratic curved branches lead from it to every entrance.
+- Enlarged the projected roof and side planes, varied foreground footprint widths, and moved all buildings farther from the screen edges so all three faces remain legible.
+- Added per-building depth sorting. Each complete silhouette and wireframe now draws from back to front, preventing distant building lines from showing through buildings closer to the camera.
+- Added layered building rendering: terrain draws first, black building silhouettes hide the ground behind them, then facade edges and window grids draw on top. This provides simple 2D occlusion in both Laboratory and Canvas modes.
+- The foreground row is invisibly anchored, while the remaining surface can still respond to fields, cutting, and dragging.
+
+### Engineering significance
+
+Perspective is now derived from actual vertex depth rather than hand-adjusted screen spacing. After projection, the existing 2D spring solver can still animate, deform, and break the mesh.
+
+### Verification
+
+Build and run all automated tests. With forces at zero, confirm that the foreground reaches the bottom of the window, rows converge toward the horizon, several unequal hills and a valley are readable, and the mountain sides remain clean. Then test gentle field deformation, cutting, Canvas mode, and Restart.
+
 ## 2026-09-02 — Breakable spring materials
 
 ### Goal
