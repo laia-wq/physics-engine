@@ -876,6 +876,34 @@ Create a real three-dimensional terrain surface and project it into the engine's
 - Rebuilt the city-path layout around a protected central corridor: ten wide, clearly three-sided buildings occupy left and right clusters, a densely sampled main path curves through the middle, and quadratic curved branches lead from it to every entrance.
 - Enlarged the projected roof and side planes, varied foreground footprint widths, and moved all buildings farther from the screen edges so all three faces remain legible.
 - Added per-building depth sorting. Each complete silhouette and wireframe now draws from back to front, preventing distant building lines from showing through buildings closer to the camera.
+
+## 2026-09-12 — Mathematical wireframe gallery
+
+### Goal
+
+Make presets the primary showcase and add forms whose projected grids create a strong three-dimensional illusion.
+
+### Implementation
+
+- Added a torus generated from its standard two-angle parametric surface.
+- Added a volumetric heart made from heart-curve cross-sections that contract through depth.
+- Added a smooth spacetime-well height field and a deeper black-hole embedding analogy with an event-horizon marker.
+- Projected the mathematical 3D coordinates into the existing 2D particle-and-connection renderer.
+- Reorganized presets in a bordered, scrollable gallery with four complexity levels and a two-column mathematical-form table.
+- Clearly labels spacetime wells as visual analogies rather than literal four-dimensional simulations.
+
+### Engineering significance
+
+These scenes separate model-space geometry from screen-space rendering: the program generates connected three-dimensional coordinates first, then projects them into two dimensions. This is the same foundational idea used by a conventional 3D rendering pipeline.
+
+### Refinement
+
+- Merged the separate spacetime and black-hole scenes into one adjustable distortion preset. A live depth slider regenerates the height field from a shallow depression to a deep funnel.
+- Rotated the torus projection toward the viewer so its hole and front/back tube structure are easier to read.
+- Added a correctly half-twisted Mobius strip, a latitude/longitude sphere, an interference-wave height field, and a two-minimum double-well field.
+- Moved presets out of Physics Controls into a dedicated window that persists unchanged between Laboratory and Canvas modes.
+- Reordered the gallery so interactive fields are Level 3 and the curated artwork scenes are Level 5; removed the portrait from the gallery.
+- Refined the Mobius strip with 56 longitudinal samples, cleaner cross-strip spacing, stronger continuous boundary curves, and an oblique projection that exposes both the rear arc and half-twist.
 - Added layered building rendering: terrain draws first, black building silhouettes hide the ground behind them, then facade edges and window grids draw on top. This provides simple 2D occlusion in both Laboratory and Canvas modes.
 - The foreground row is invisibly anchored, while the remaining surface can still respond to fields, cutting, and dragging.
 

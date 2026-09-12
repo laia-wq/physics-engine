@@ -73,6 +73,8 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Full-screen projected 3D wireframe terrain with an elevated perspective camera and continuous hills, ridges, and valleys
 - Rigid 3D wireframe buildings with terrain-following foundations, precise terrain occlusion, stretched roof and side meshes, and visible window grids
 - A smooth winding central path with individually curved access branches to every building
+- Mathematical wireframes: heart, torus, Mobius strip, sphere, wave surface, double-well field, and adjustable spacetime distortion
+- A dedicated preset window shared by Laboratory and Canvas, organized from physics foundations through advanced wireframe showcases
 
 ## Requirements
 

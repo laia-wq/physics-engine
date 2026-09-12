@@ -535,6 +535,7 @@ int main()
     int generatedWebRings = 6;
     int generatedWebSpokes = 16;
     float generatedStructureSpacing = 20.f;
+    float spacetimeWellDepth = 150.f;
     bool useSpatialGrid = false;
     float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
@@ -1428,7 +1429,7 @@ int main()
         simulationTime = 0.f;
     };
 
-    const auto loadParticlePortrait = [&]()
+    [[maybe_unused]] const auto loadParticlePortrait = [&]()
     {
         constexpr std::size_t COLUMNS = 43;
         constexpr std::size_t ROWS = 53;
@@ -1661,6 +1662,258 @@ int main()
         useDistanceConstraints = true;
         constraintIterations = 14;
         constraintStiffness = 0.86f;
+        breakableSprings = false;
+        brokenSpringCount = 0;
+        cutConnectionCount = 0;
+        colorByCharge = false;
+        colorByMaterial = true;
+        gravityEnabled = true;
+        gravityField[0] = 0.f;
+        gravityField[1] = 0.f;
+        windEnabled = true;
+        windForce[0] = 0.f;
+        windForce[1] = 0.f;
+        pointFields.clear();
+        selectedPointField.reset();
+        mutualElectrostaticsEnabled = false;
+        bodyCollisionsEnabled = false;
+        selectedBody.reset();
+        draggedBody.reset();
+        restartBodies = bodies;
+        restartSprings = springs;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+    };
+
+    // Mathematical wireframes are generated as real 3D point grids and then
+    // projected into the existing 2D particle renderer.
+    const auto loadMathematicalWireframe = [&](int form)
+    {
+        constexpr float PI = 3.14159265359f;
+        const bool heightField = form == 2 || form == 5 || form == 6;
+        const std::size_t columns = heightField ? 35 : (form == 3 ? 56 : 40);
+        const std::size_t rows = heightField ? 29 : (form == 3 ? 13 : 19);
+        const bool wrapColumns = !heightField && form != 3;
+        const bool wrapRows = form == 0;
+
+        bodies.clear();
+        springs.clear();
+        std::vector<std::size_t> mesh(columns * rows);
+        const auto meshAt = [&](std::size_t row, std::size_t column)
+            -> std::size_t&
+        {
+            return mesh[row * columns + column];
+        };
+        const auto addFixedParticle = [&](sf::Vector2f center,
+                                          float radius,
+                                          int group = 52)
+        {
+            bodies.emplace_back(
+                radius,
+                center - sf::Vector2f(radius, radius),
+                sf::Vector2f(0.f, 0.f),
+                0.15f
+            );
+            bodies.back().material = ParticleMaterial::Structural;
+            bodies.back().groupId = group;
+            bodies.back().body.inverseMass = 0.f;
+            bodies.back().showFixedOutline = false;
+            return bodies.size() - 1;
+        };
+        const auto connect = [&](std::size_t first, std::size_t second)
+        {
+            const sf::Vector2f difference =
+                bodies[second].body.center() - bodies[first].body.center();
+            springs.push_back({
+                first, second,
+                std::sqrt(difference.x * difference.x +
+                    difference.y * difference.y),
+                6200.f, 250.f
+            });
+        };
+
+        float blackHoleBottom = 0.f;
+        for (std::size_t row = 0; row < rows; ++row)
+        {
+            for (std::size_t column = 0; column < columns; ++column)
+            {
+                const float u = 2.f * PI * static_cast<float>(column) /
+                    static_cast<float>(columns);
+                const float v = rows > 1
+                    ? static_cast<float>(row) /
+                        static_cast<float>(wrapRows ? rows : rows - 1)
+                    : 0.f;
+                float modelX = 0.f;
+                float modelY = 0.f;
+                float modelZ = 0.f;
+
+                if (form == 0)
+                {
+                    const float tubeAngle = 2.f * PI * v;
+                    constexpr float MAJOR_RADIUS = 125.f;
+                    constexpr float TUBE_RADIUS = 48.f;
+                    modelX = (MAJOR_RADIUS +
+                        TUBE_RADIUS * std::cos(tubeAngle)) * std::cos(u);
+                    modelZ = (MAJOR_RADIUS +
+                        TUBE_RADIUS * std::cos(tubeAngle)) * std::sin(u);
+                    modelY = TUBE_RADIUS * std::sin(tubeAngle);
+                }
+                else if (form == 1)
+                {
+                    const float depth = -0.94f + 1.88f * v;
+                    const float sliceScale = std::sqrt(
+                        std::max(0.f, 1.f - depth * depth)
+                    );
+                    const float heartX = 16.f * std::pow(std::sin(u), 3.f);
+                    const float heartY =
+                        13.f * std::cos(u) -
+                        5.f * std::cos(2.f * u) -
+                        2.f * std::cos(3.f * u) -
+                        std::cos(4.f * u);
+                    modelX = heartX * 9.2f * sliceScale;
+                    modelY = heartY * 8.2f * sliceScale;
+                    modelZ = depth * 72.f;
+                }
+                else if (form == 3)
+                {
+                    const float width = -1.f + 2.f * v;
+                    constexpr float RADIUS = 128.f;
+                    constexpr float HALF_WIDTH = 55.f;
+                    const float bandRadius =
+                        RADIUS + HALF_WIDTH * width * std::cos(u * 0.5f);
+                    modelX = bandRadius * std::cos(u);
+                    modelZ = bandRadius * std::sin(u);
+                    modelY = HALF_WIDTH * width * std::sin(u * 0.5f);
+                }
+                else if (form == 4)
+                {
+                    const float latitude = 0.05f + (PI - 0.1f) * v;
+                    constexpr float RADIUS = 142.f;
+                    modelX = RADIUS * std::sin(latitude) * std::cos(u);
+                    modelZ = RADIUS * std::sin(latitude) * std::sin(u);
+                    modelY = RADIUS * std::cos(latitude);
+                }
+                else
+                {
+                    const float across = -1.f + 2.f *
+                        static_cast<float>(column) /
+                        static_cast<float>(columns - 1);
+                    const float depth = -1.f + 2.f * v;
+                    modelX = across * 300.f;
+                    modelZ = depth * 235.f;
+                    const float distance = std::sqrt(
+                        modelX * modelX + modelZ * modelZ
+                    );
+                    if (form == 5)
+                    {
+                        modelY =
+                            34.f * std::sin(modelX * 0.025f) *
+                                std::cos(modelZ * 0.027f) +
+                            14.f * std::sin(
+                                modelX * 0.014f + modelZ * 0.032f
+                            );
+                    }
+                    else if (form == 6)
+                    {
+                        const float leftDistanceSquared =
+                            (modelX + 105.f) * (modelX + 105.f) +
+                            modelZ * modelZ;
+                        const float rightDistanceSquared =
+                            (modelX - 105.f) * (modelX - 105.f) +
+                            modelZ * modelZ;
+                        modelY =
+                            -105.f * std::exp(
+                                -leftDistanceSquared / 15000.f
+                            ) -
+                            105.f * std::exp(
+                                -rightDistanceSquared / 15000.f
+                            );
+                    }
+                    else
+                    {
+                        modelY = -spacetimeWellDepth * std::exp(
+                            -(distance * distance) / 24000.f
+                        );
+                        blackHoleBottom = std::max(blackHoleBottom, -modelY);
+                    }
+                }
+
+                sf::Vector2f projected;
+                if (heightField)
+                {
+                    projected = sf::Vector2f(
+                        400.f + modelX + modelZ * 0.12f,
+                        270.f + modelZ * 0.62f - modelY
+                    );
+                }
+                else if (form == 3)
+                {
+                    // A deliberately oblique camera makes the rear arc and
+                    // half-twist cross-over readable at the same time.
+                    projected = sf::Vector2f(
+                        400.f + modelX * 0.92f + modelZ * 0.22f,
+                        315.f - modelY * 1.28f +
+                            modelZ * 0.5f - modelX * 0.08f
+                    );
+                }
+                else
+                {
+                    constexpr float YAW = -0.48f;
+                    const float rotatedX =
+                        modelX * std::cos(YAW) - modelZ * std::sin(YAW);
+                    const float rotatedDepth =
+                        modelX * std::sin(YAW) + modelZ * std::cos(YAW);
+                    projected = sf::Vector2f(
+                        400.f + rotatedX,
+                        315.f - modelY +
+                            rotatedDepth * (form == 0 ? 0.68f : 0.34f)
+                    );
+                }
+                const bool mobiusBoundary =
+                    form == 3 && (row == 0 || row + 1 == rows);
+                meshAt(row, column) = addFixedParticle(
+                    projected,
+                    heightField ? 1.2f : (mobiusBoundary ? 2.f : 1.3f)
+                );
+            }
+        }
+
+        for (std::size_t row = 0; row < rows; ++row)
+        {
+            for (std::size_t column = 0; column < columns; ++column)
+            {
+                if (column + 1 < columns)
+                {
+                    connect(meshAt(row, column), meshAt(row, column + 1));
+                }
+                else if (wrapColumns)
+                {
+                    connect(meshAt(row, column), meshAt(row, 0));
+                }
+                else if (form == 3 && column + 1 == columns)
+                {
+                    connect(
+                        meshAt(row, column),
+                        meshAt(rows - 1 - row, 0)
+                    );
+                }
+                if (row + 1 < rows)
+                {
+                    connect(meshAt(row, column), meshAt(row + 1, column));
+                }
+                else if (wrapRows)
+                {
+                    connect(meshAt(row, column), meshAt(0, column));
+                }
+            }
+        }
+        if (form == 2)
+        {
+            const sf::Vector2f horizonCenter(400.f, 270.f + blackHoleBottom);
+            addFixedParticle(horizonCenter, 23.f, 58);
+        }
+
+        useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         cutConnectionCount = 0;
@@ -3210,9 +3463,12 @@ int main()
             }
         }
 
-        if (ImGui::CollapsingHeader("Preset scenes"))
+        ImGui::End();
+        ImGui::SetNextWindowPos(ImVec2(340.f, 12.f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(330.f, 500.f), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Preset Gallery");
         {
-            ImGui::TextDisabled("Classical physics");
+            ImGui::TextDisabled("LEVEL 1  |  Physics foundations");
             if (ImGui::Button("Classic"))
             {
                 loadClassicScene();
@@ -3303,7 +3559,8 @@ int main()
                 colorByCharge = true;
                 bodyCollisionsEnabled = false;
             }
-            ImGui::TextDisabled("Connected systems");
+            ImGui::Separator();
+            ImGui::TextDisabled("LEVEL 2  |  Connected systems");
             if (ImGui::Button("Spring chain"))
             {
                 loadSpringChain(static_cast<std::size_t>(generatedChainCount));
@@ -3345,26 +3602,8 @@ int main()
             {
                 loadMaterialRegions();
             }
-            ImGui::TextDisabled("Particle artwork");
-            if (ImGui::Button("Particle apple"))
-            {
-                loadParticleApple();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Windblown tree"))
-            {
-                loadWindblownTree();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Reference portrait"))
-            {
-                loadParticlePortrait();
-            }
-            if (ImGui::Button("Rolling terrain"))
-            {
-                loadRollingTerrain();
-            }
-            ImGui::TextDisabled("Point fields");
+            ImGui::Separator();
+            ImGui::TextDisabled("LEVEL 3  |  Interactive force fields");
             if (ImGui::Button("Attractor"))
             {
                 loadStressScene(300);
@@ -3423,7 +3662,58 @@ int main()
                 selectedBody.reset();
                 draggedBody.reset();
             }
+
+            ImGui::Separator();
+            ImGui::TextDisabled("LEVEL 4  |  Mathematical forms");
+            if (ImGui::BeginTable("MathematicalPresetTable", 2))
+            {
+                const auto mathematicalButton = [&](const char* label,
+                                                     int form)
+                {
+                    ImGui::TableNextColumn();
+                    if (ImGui::Button(label, ImVec2(-1.f, 0.f)))
+                    {
+                        loadMathematicalWireframe(form);
+                    }
+                };
+                mathematicalButton("3D heart", 1);
+                mathematicalButton("Torus / donut", 0);
+                mathematicalButton("Mobius strip", 3);
+                mathematicalButton("Sphere", 4);
+                mathematicalButton("Wave surface", 5);
+                mathematicalButton("Double-well field", 6);
+                mathematicalButton("Spacetime distortion", 2);
+                ImGui::EndTable();
+            }
+            if (ImGui::SliderFloat(
+                    "Distortion depth", &spacetimeWellDepth,
+                    25.f, 235.f, "%.0f px"
+                ))
+            {
+                loadMathematicalWireframe(2);
+            }
+            ImGui::TextDisabled(
+                "Shallow curvature -> deep black-hole funnel analogy"
+            );
+
+            ImGui::Separator();
+            ImGui::TextDisabled("LEVEL 5  |  Wireframe showcase");
+            if (ImGui::Button("Particle apple"))
+            {
+                loadParticleApple();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Windblown tree"))
+            {
+                loadWindblownTree();
+            }
+            if (ImGui::Button("Rolling terrain"))
+            {
+                loadRollingTerrain();
+            }
         }
+        ImGui::End();
+        ImGui::Begin("Physics Controls");
 
         if (ImGui::CollapsingHeader(
                 "Interaction tool",
@@ -4003,6 +4293,12 @@ int main()
             view.shape.setOutlineThickness(
                 view.body.inverseMass == 0.f && view.showFixedOutline ? 3.f : 0.f
             );
+            if (view.groupId == 58)
+            {
+                view.shape.setFillColor(sf::Color::Black);
+                view.shape.setOutlineColor(sf::Color(110, 165, 255));
+                view.shape.setOutlineThickness(3.f);
+            }
             view.sync();
         }
 
