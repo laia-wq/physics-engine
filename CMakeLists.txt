@@ -45,6 +45,7 @@ add_library(
     src/Collision.cpp
     src/DistanceConstraint.cpp
     src/Electrostatics.cpp
+    src/PointField.cpp
     src/Spring.cpp
 )
 target_include_directories(physics-core PUBLIC include)
@@ -90,6 +91,11 @@ if(BUILD_TESTING)
     target_link_libraries(spring-tests PRIVATE physics-core)
     enable_project_warnings(spring-tests)
     add_test(NAME damped-spring-forces COMMAND spring-tests)
+
+    add_executable(point-field-tests tests/PointFieldTests.cpp)
+    target_link_libraries(point-field-tests PRIVATE physics-core)
+    enable_project_warnings(point-field-tests)
+    add_test(NAME interactive-point-fields COMMAND point-field-tests)
 
     add_executable(distance-constraint-tests tests/DistanceConstraintTests.cpp)
     target_link_libraries(distance-constraint-tests PRIVATE physics-core)

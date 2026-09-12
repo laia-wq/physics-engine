@@ -74,7 +74,10 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Rigid 3D wireframe buildings with terrain-following foundations, precise terrain occlusion, stretched roof and side meshes, and visible window grids
 - A smooth winding central path with individually curved access branches to every building
 - Mathematical wireframes: heart, torus, Mobius strip, sphere, wave surface, double-well field, and adjustable spacetime distortion
+- Optional alternating mesh diagonals across every mathematical surface
+- Optional terrain-only diagonals that distinguish triangulated hills from rectangular architecture
 - A dedicated preset window shared by Laboratory and Canvas, organized from physics foundations through advanced wireframe showcases
+- PNG screenshot export with the F12 shortcut or control-panel button
 
 ## Requirements
 
@@ -94,6 +97,9 @@ cmake --build build
 ./build/physics-engine
 ```
 
+Screenshots are saved as timestamped PNG files in the local `screenshots/`
+folder. Press `C` before `F12` for a clean scene without control windows.
+
 ## Roadmap
 
 - Rotating rectangular rigid bodies
@@ -104,7 +110,7 @@ cmake --build build
 
 ## Architecture
 
-The reusable `physics-core` library owns body state, integration, boundary response, and collision mathematics. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation logic testable without opening a window.
+The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, and point-field forces. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation logic testable without opening a window.
 
 ## Engineering notes
 

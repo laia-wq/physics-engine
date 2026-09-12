@@ -2,6 +2,17 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-12 — Extract and test point-field physics
+
+- Moved the point-field data model and acceleration calculation out of the interface-heavy `main.cpp` and into `physics-core`.
+- Preserved radial attraction and repulsion, tangential vortex motion, oscillation, material response, and charge-sensitive behavior.
+- Added focused automated tests for every one of those field behaviors, including disabled fields.
+- Deliberately skipped scene saving and particle emitters because neither is required by the finished wireframe-focused scope.
+
+### Engineering significance
+
+The application now asks the physics library for field acceleration instead of containing the formula inside its UI loop. This makes the behavior reusable and testable without opening the graphical application.
+
 ## 2026-08-24 — Establish a professional project foundation
 
 ### Objective
@@ -904,6 +915,21 @@ These scenes separate model-space geometry from screen-space rendering: the prog
 - Moved presets out of Physics Controls into a dedicated window that persists unchanged between Laboratory and Canvas modes.
 - Reordered the gallery so interactive fields are Level 3 and the curated artwork scenes are Level 5; removed the portrait from the gallery.
 - Refined the Mobius strip with 56 longitudinal samples, cleaner cross-strip spacing, stronger continuous boundary curves, and an oblique projection that exposes both the rear arc and half-twist.
+
+## 2026-09-12 — Screenshot export
+
+- Added an F12 shortcut and control-panel button that capture the fully rendered application window.
+- Creates a local screenshots directory automatically and uses collision-safe millisecond timestamps.
+- Reports the absolute saved path or a clear failure message in Physics Controls.
+- Hiding controls with C before capture produces clean portfolio and README artwork.
+
+## 2026-09-12 — Triangulated mathematical meshes
+
+- Added one alternating diagonal to each interior mathematical-surface cell.
+- Alternation avoids biasing the mesh visually in one direction while revealing how quadrilateral grids can be decomposed into triangles.
+- Added a Mathematical Forms checkbox that regenerates the active preset immediately, allowing direct comparison with the cleaner horizontal/vertical grid.
+- Added a separate Terrain diagonals option for Rolling Terrain. It triangulates only the hill grid, leaving buildings, windows, roofs, and paths rectangular for visual separation.
+- Added live Wave height and Double-well depth controls. Each slider immediately regenerates its corresponding mathematical height field, matching the interaction used by Spacetime distortion.
 - Added layered building rendering: terrain draws first, black building silhouettes hide the ground behind them, then facade edges and window grids draw on top. This provides simple 2D occlusion in both Laboratory and Canvas modes.
 - The foreground row is invisibly anchored, while the remaining surface can still respond to fields, cutting, and dragging.
 

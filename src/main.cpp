@@ -7,11 +7,13 @@
 #include "physics/Collision.hpp"
 #include "physics/DistanceConstraint.hpp"
 #include "physics/Electrostatics.hpp"
+#include "physics/PointField.hpp"
 #include "physics/Spring.hpp"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <filesystem>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -36,17 +38,7 @@ struct DebugContact
     sf::Vector2f normal;
 };
 
-struct PointField
-{
-    sf::Vector2f position;
-    float radialStrength;
-    float vortexStrength;
-    bool enabled;
-    float oscillationAmount = 0.f;
-    float oscillationFrequency = 1.f;
-    float remainingLifetime = -1.f;
-    bool chargeSensitive = false;
-};
+using PointField = physics::PointField;
 
 enum class ParticleMaterial
 {
@@ -536,6 +528,11 @@ int main()
     int generatedWebSpokes = 16;
     float generatedStructureSpacing = 20.f;
     float spacetimeWellDepth = 150.f;
+    float waveSurfaceHeight = 48.f;
+    float doubleWellDepth = 105.f;
+    bool mathematicalMeshDiagonals = true;
+    int activeMathematicalForm = -1;
+    bool terrainMeshDiagonals = false;
     bool useSpatialGrid = false;
     float gridCellSize = 50.f;
     std::vector<DebugContact> debugContacts;
@@ -544,40 +541,20 @@ int main()
     std::size_t actualCollisions = 0;
     std::size_t electrostaticPairChecks = 0;
     double physicsStepMilliseconds = 0.0;
+    bool screenshotRequested = false;
+    std::string screenshotStatus;
 
     const auto pointFieldAcceleration = [&](const CircleView& view)
     {
-        const auto& body = view.body;
-        sf::Vector2f totalAcceleration(0.f, 0.f);
-        for (const auto& field : pointFields)
-        {
-            if (!field.enabled)
-            {
-                continue;
-            }
-
-            const sf::Vector2f difference = field.position - body.center();
-            const float softenedDistanceSquared =
-                difference.x * difference.x + difference.y * difference.y +
-                FIELD_SOFTENING * FIELD_SOFTENING;
-            const sf::Vector2f direction =
-                difference / std::sqrt(softenedDistanceSquared);
-            const sf::Vector2f tangent(-direction.y, direction.x);
-            constexpr float PI = 3.14159265359f;
-            const float oscillation = 1.f + field.oscillationAmount *
-                std::sin(2.f * PI * field.oscillationFrequency * simulationTime);
-            constexpr float VISUAL_FIELD_RESPONSE = 12.f;
-            const float response = (field.chargeSensitive
-                ? body.charge * body.inverseMass * 400.f
-                : VISUAL_FIELD_RESPONSE) *
-                materialForceResponse(view.material);
-            totalAcceleration +=
-                direction * (field.radialStrength * oscillation * response /
-                    softenedDistanceSquared) +
-                tangent * (field.vortexStrength * oscillation * response /
-                    softenedDistanceSquared);
-        }
-        return totalAcceleration;
+        constexpr float VISUAL_FIELD_RESPONSE = 12.f;
+        return physics::calculatePointFieldAcceleration(
+            view.body,
+            pointFields,
+            simulationTime,
+            FIELD_SOFTENING,
+            VISUAL_FIELD_RESPONSE,
+            materialForceResponse(view.material)
+        );
     };
 
     const auto windAcceleration = [&](const CircleView& view)
@@ -1689,6 +1666,7 @@ int main()
     // projected into the existing 2D particle renderer.
     const auto loadMathematicalWireframe = [&](int form)
     {
+        activeMathematicalForm = form;
         constexpr float PI = 3.14159265359f;
         const bool heightField = form == 2 || form == 5 || form == 6;
         const std::size_t columns = heightField ? 35 : (form == 3 ? 56 : 40);
@@ -1807,9 +1785,10 @@ int main()
                     if (form == 5)
                     {
                         modelY =
-                            34.f * std::sin(modelX * 0.025f) *
+                            waveSurfaceHeight * 0.71f *
+                                std::sin(modelX * 0.025f) *
                                 std::cos(modelZ * 0.027f) +
-                            14.f * std::sin(
+                            waveSurfaceHeight * 0.29f * std::sin(
                                 modelX * 0.014f + modelZ * 0.032f
                             );
                     }
@@ -1822,10 +1801,10 @@ int main()
                             (modelX - 105.f) * (modelX - 105.f) +
                             modelZ * modelZ;
                         modelY =
-                            -105.f * std::exp(
+                            -doubleWellDepth * std::exp(
                                 -leftDistanceSquared / 15000.f
                             ) -
-                            105.f * std::exp(
+                            doubleWellDepth * std::exp(
                                 -rightDistanceSquared / 15000.f
                             );
                     }
@@ -1900,6 +1879,25 @@ int main()
                 if (row + 1 < rows)
                 {
                     connect(meshAt(row, column), meshAt(row + 1, column));
+                    if (mathematicalMeshDiagonals && column + 1 < columns)
+                    {
+                        // Alternate the diagonal direction so the surface is
+                        // triangulated without developing a visual lean.
+                        if ((row + column) % 2 == 0)
+                        {
+                            connect(
+                                meshAt(row, column),
+                                meshAt(row + 1, column + 1)
+                            );
+                        }
+                        else
+                        {
+                            connect(
+                                meshAt(row + 1, column),
+                                meshAt(row, column + 1)
+                            );
+                        }
+                    }
                 }
                 else if (wrapRows)
                 {
@@ -2146,6 +2144,23 @@ int main()
                 if (row > 0)
                 {
                     connect(terrain[row - 1][column], terrain[row][column]);
+                    if (terrainMeshDiagonals && column > 0)
+                    {
+                        if ((row + column) % 2 == 0)
+                        {
+                            connect(
+                                terrain[row - 1][column - 1],
+                                terrain[row][column]
+                            );
+                        }
+                        else
+                        {
+                            connect(
+                                terrain[row - 1][column],
+                                terrain[row][column - 1]
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -3029,6 +3044,35 @@ int main()
                 .count();
     };
 
+    const auto saveScreenshot = [&]()
+    {
+        std::error_code error;
+        const std::filesystem::path directory("screenshots");
+        std::filesystem::create_directories(directory, error);
+        if (error)
+        {
+            screenshotStatus = "Could not create screenshots folder";
+            return;
+        }
+        const auto timestamp = std::chrono::duration_cast<
+            std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()
+            ).count();
+        const std::filesystem::path path =
+            directory / ("physics-engine-" + std::to_string(timestamp) + ".png");
+        sf::Texture capture(window.getSize());
+        capture.update(window);
+        if (capture.copyToImage().saveToFile(path))
+        {
+            screenshotStatus =
+                "Saved: " + std::filesystem::absolute(path, error).string();
+        }
+        else
+        {
+            screenshotStatus = "Screenshot export failed";
+        }
+    };
+
     while (window.isOpen())
     {
         while (auto event = window.pollEvent())
@@ -3060,6 +3104,10 @@ int main()
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::C)
                 {
                     showControls = !showControls;
+                }
+                else if (keyPressed->scancode == sf::Keyboard::Scancode::F12)
+                {
+                    screenshotRequested = true;
                 }
                 else if (
                     canvasMode &&
@@ -3366,6 +3414,16 @@ int main()
             springs.clear();
             selectedBody.reset();
             draggedBody.reset();
+        }
+        if (ImGui::Button("Save screenshot"))
+        {
+            screenshotRequested = true;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("F12");
+        if (!screenshotStatus.empty())
+        {
+            ImGui::TextWrapped("%s", screenshotStatus.c_str());
         }
 
         if (ImGui::CollapsingHeader(
@@ -3692,6 +3750,29 @@ int main()
             {
                 loadMathematicalWireframe(2);
             }
+            if (ImGui::SliderFloat(
+                    "Wave height", &waveSurfaceHeight,
+                    5.f, 100.f, "%.0f px"
+                ))
+            {
+                loadMathematicalWireframe(5);
+            }
+            if (ImGui::SliderFloat(
+                    "Double-well depth", &doubleWellDepth,
+                    15.f, 180.f, "%.0f px"
+                ))
+            {
+                loadMathematicalWireframe(6);
+            }
+            if (ImGui::Checkbox(
+                    "Mesh diagonals", &mathematicalMeshDiagonals
+                ) && activeMathematicalForm >= 0)
+            {
+                loadMathematicalWireframe(activeMathematicalForm);
+            }
+            ImGui::TextDisabled(
+                "Alternating diagonals reveal triangular surface structure"
+            );
             ImGui::TextDisabled(
                 "Shallow curvature -> deep black-hole funnel analogy"
             );
@@ -3711,6 +3792,15 @@ int main()
             {
                 loadRollingTerrain();
             }
+            if (ImGui::Checkbox(
+                    "Terrain diagonals", &terrainMeshDiagonals
+                ))
+            {
+                loadRollingTerrain();
+            }
+            ImGui::TextDisabled(
+                "Triangulates hills only; buildings remain rectangular"
+            );
         }
         ImGui::End();
         ImGui::Begin("Physics Controls");
@@ -4609,6 +4699,11 @@ int main()
             drawCutBrush();
             ImGui::SFML::Render(window);
             window.display();
+            if (screenshotRequested)
+            {
+                saveScreenshot();
+                screenshotRequested = false;
+            }
             continue;
         }
 
@@ -4691,6 +4786,11 @@ int main()
 
         ImGui::SFML::Render(window);
         window.display();
+        if (screenshotRequested)
+        {
+            saveScreenshot();
+            screenshotRequested = false;
+        }
     }
 
     ImGui::SFML::Shutdown();
