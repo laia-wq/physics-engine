@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <filesystem>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -142,6 +141,19 @@ void drawLine(
         sf::Vertex{end, color}
     };
     target.draw(vertices.data(), vertices.size(), sf::PrimitiveType::Lines);
+}
+
+void explainLastControl(const char* explanation)
+{
+    if (!ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        return;
+    }
+    ImGui::BeginTooltip();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 24.f);
+    ImGui::TextUnformatted(explanation);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
 }
 
 void vectorPad(
@@ -316,6 +328,7 @@ int main()
     bool canvasMode = false;
     bool canvasTrails = true;
     bool showControls = true;
+    bool showHelp = false;
     bool placingPointField = false;
     bool draggingPointField = false;
     bool cuttingConnections = false;
@@ -381,8 +394,6 @@ int main()
     std::size_t electrostaticPairChecks = 0;
     double physicsStepMilliseconds = 0.0;
     bool physicsBacklogDropped = false;
-    bool screenshotRequested = false;
-    std::string screenshotStatus;
 
     const auto pointFieldAcceleration = [&](const CircleView& view)
     {
@@ -1289,33 +1300,36 @@ int main()
                 .count();
     };
 
-    const auto saveScreenshot = [&]()
+    const auto restartScene = [&]()
     {
-        std::error_code error;
-        const std::filesystem::path directory("screenshots");
-        std::filesystem::create_directories(directory, error);
-        if (error)
-        {
-            screenshotStatus = "Could not create screenshots folder";
-            return;
-        }
-        const auto timestamp = std::chrono::duration_cast<
-            std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()
-            ).count();
-        const std::filesystem::path path =
-            directory / ("physics-engine-" + std::to_string(timestamp) + ".png");
-        sf::Texture capture(window.getSize());
-        capture.update(window);
-        if (capture.copyToImage().saveToFile(path))
-        {
-            screenshotStatus =
-                "Saved: " + std::filesystem::absolute(path, error).string();
-        }
-        else
-        {
-            screenshotStatus = "Screenshot export failed";
-        }
+        bodies = restartBodies;
+        springs = restartSprings;
+        brokenSpringCount = 0;
+        cutConnectionCount = 0;
+        firstSpringBody.reset();
+        cuttingConnections = false;
+        pointFields.erase(
+            std::remove_if(
+                pointFields.begin(),
+                pointFields.end(),
+                [](const PointField& field)
+                {
+                    return field.remainingLifetime >= 0.f;
+                }
+            ),
+            pointFields.end()
+        );
+        selectedPointField.reset();
+        placingPointField = false;
+        draggingPointField = false;
+        selectedBody.reset();
+        draggedBody.reset();
+        paused = false;
+        stepRequested = false;
+        accumulator = 0.f;
+        simulationTime = 0.f;
+        canvasTexture.clear(canvasBackgrounds[canvasPalette]);
+        canvasTexture.display();
     };
 
     while (window.isOpen())
@@ -1343,16 +1357,16 @@ int main()
                     canvasTexture.clear(canvasBackgrounds[canvasPalette]);
                     canvasTexture.display();
                     window.setTitle(canvasMode
-                        ? "Canvas | Tab: Lab | C: Controls | T: Trails | P: Palette | Right-click: Field"
-                        : "Laboratory | Tab: Canvas | C: Controls");
+                        ? "Canvas | Tab: Lab | C: Controls | H: Help | T: Trails | P: Palette"
+                        : "Laboratory | Tab: Canvas | C: Controls | H: Help");
                 }
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::C)
                 {
                     showControls = !showControls;
                 }
-                else if (keyPressed->scancode == sf::Keyboard::Scancode::F12)
+                else if (keyPressed->scancode == sf::Keyboard::Scancode::H)
                 {
-                    screenshotRequested = true;
+                    showHelp = !showHelp;
                 }
                 else if (
                     canvasMode &&
@@ -1374,30 +1388,7 @@ int main()
                 }
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::R)
                 {
-                    bodies = restartBodies;
-                    springs = restartSprings;
-                    pointFields.erase(
-                        std::remove_if(
-                            pointFields.begin(), pointFields.end(),
-                            [](const PointField& field)
-                            {
-                                return field.remainingLifetime >= 0.f;
-                            }
-                        ),
-                        pointFields.end()
-                    );
-                    selectedPointField.reset();
-                    placingPointField = false;
-                    draggingPointField = false;
-                    selectedBody.reset();
-                    draggedBody.reset();
-                    cuttingConnections = false;
-                    cutConnectionCount = 0;
-                    paused = false;
-                    accumulator = 0.f;
-                    simulationTime = 0.f;
-                    canvasTexture.clear(canvasBackgrounds[canvasPalette]);
-                    canvasTexture.display();
+                    restartScene();
                 }
                 else if (keyPressed->scancode == sf::Keyboard::Scancode::Space)
                 {
@@ -1595,7 +1586,12 @@ int main()
         ImGui::Begin("Physics Controls");
         ImGui::Text("Status: %s", paused ? "Paused" : "Running");
         ImGui::Text("Bodies: %zu", bodies.size());
-        ImGui::TextDisabled("Tab: change view  C: hide controls");
+        ImGui::TextDisabled("Tab: change view  C: controls  H: help");
+        if (ImGui::Button("Help"))
+        {
+            showHelp = true;
+        }
+        explainLastControl("Open the controls and keyboard-shortcut guide.");
 
         if (canvasMode && ImGui::CollapsingHeader(
                 "Canvas appearance",
@@ -1627,31 +1623,11 @@ int main()
         ImGui::SameLine();
         if (ImGui::Button("Restart"))
         {
-            bodies = restartBodies;
-            springs = restartSprings;
-            brokenSpringCount = 0;
-            cutConnectionCount = 0;
-            cuttingConnections = false;
-            pointFields.erase(
-                std::remove_if(
-                    pointFields.begin(), pointFields.end(),
-                    [](const PointField& field)
-                    {
-                        return field.remainingLifetime >= 0.f;
-                    }
-                ),
-                pointFields.end()
-            );
-            selectedPointField.reset();
-            placingPointField = false;
-            draggingPointField = false;
-            selectedBody.reset();
-            draggedBody.reset();
-            accumulator = 0.f;
-            simulationTime = 0.f;
-            canvasTexture.clear(canvasBackgrounds[canvasPalette]);
-            canvasTexture.display();
+            restartScene();
         }
+        explainLastControl(
+            "Restore the currently loaded preset, including connections, and resume it from the beginning."
+        );
         ImGui::SameLine();
         if (ImGui::Button("Clear"))
         {
@@ -1660,17 +1636,6 @@ int main()
             selectedBody.reset();
             draggedBody.reset();
         }
-        if (ImGui::Button("Save screenshot"))
-        {
-            screenshotRequested = true;
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("F12");
-        if (!screenshotStatus.empty())
-        {
-            ImGui::TextWrapped("%s", screenshotStatus.c_str());
-        }
-
         if (ImGui::CollapsingHeader(
                 "Body count",
                 ImGuiTreeNodeFlags_DefaultOpen
@@ -1718,6 +1683,9 @@ int main()
             }
             ImGui::BeginDisabled(!gravityEnabled);
             vectorPad("Gravity direction", gravityField, 1500.f);
+            explainLastControl(
+                "Uniform acceleration: every movable particle accelerates equally, regardless of mass or radius."
+            );
             ImGui::EndDisabled();
 
             ImGui::Checkbox("Wind enabled", &windEnabled);
@@ -1729,6 +1697,9 @@ int main()
             }
             ImGui::BeginDisabled(!windEnabled);
             vectorPad("Wind direction", windForce, 5000.f);
+            explainLastControl(
+                "Size-sensitive force: smaller and lighter particles respond more strongly than large ones."
+            );
             ImGui::EndDisabled();
             ImGui::SliderFloat(
                 "Wind sensitivity", &windSensitivity, 0.1f, 3.f, "%.1fx"
@@ -2266,6 +2237,9 @@ int main()
                 ImGui::TextDisabled("Mass 0 creates a static body");
             }
             ImGui::SliderFloat("Restitution", &spawnRestitution, 0.f, 1.f, "%.2f");
+            explainLastControl(
+                "Bounciness: 0 absorbs the collision; 1 preserves the most rebound speed."
+            );
             ImGui::SliderFloat("Charge", &spawnCharge, -1.f, 1.f, "%+.1f");
             ImGui::SliderFloat("Floor friction", &floorFriction, 0.8f, 1.f, "%.3f");
         }
@@ -2278,6 +2252,9 @@ int main()
             ImGui::Text("Connections: %zu", springs.size());
             ImGui::Checkbox(
                 "Use rigid distance constraints", &useDistanceConstraints
+            );
+            explainLastControl(
+                "Keep connected particles about the same distance apart, making ropes and meshes less stretchy and more stable than ordinary springs."
             );
             ImGui::BeginDisabled(!useDistanceConstraints);
             ImGui::SliderInt(
@@ -2292,6 +2269,9 @@ int main()
             );
             ImGui::EndDisabled();
             ImGui::Checkbox("Breakable connections", &breakableSprings);
+            explainLastControl(
+                "Allow connections to tear when stretched beyond the chosen strain threshold."
+            );
             ImGui::BeginDisabled(!breakableSprings);
             ImGui::SliderFloat(
                 "Breaking strain", &springBreakingStrain,
@@ -2476,6 +2456,9 @@ int main()
                 auto& field = pointFields[*selectedPointField];
                 ImGui::Checkbox("Selected field enabled", &field.enabled);
                 ImGui::Checkbox("Responds to charge", &field.chargeSensitive);
+                explainLastControl(
+                    "When enabled, positive and negative particles react in opposite directions; neutral particles ignore this field."
+                );
                 ImGui::SliderFloat(
                     "Attract / repel", &field.radialStrength,
                     -20000000.f, 20000000.f, "%.1e"
@@ -2525,6 +2508,9 @@ int main()
                 );
             }
             ImGui::Checkbox("Use spatial grid", &useSpatialGrid);
+            explainLastControl(
+                "Check only particles sharing nearby grid cells instead of testing every possible pair."
+            );
             ImGui::BeginDisabled(!useSpatialGrid);
             ImGui::SliderFloat("Cell size", &gridCellSize, 20.f, 120.f, "%.0f px");
             ImGui::EndDisabled();
@@ -2551,6 +2537,36 @@ int main()
         ImGui::TextDisabled("Choose a tool above, then click the scene");
         ImGui::TextDisabled("Space: pause  N: step  R: restart");
         ImGui::End();
+        }
+
+        if (showHelp)
+        {
+            ImGui::SetNextWindowSize(ImVec2(390.f, 0.f), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Quick Help", &showHelp, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::TextWrapped(
+                "Choose a preset, choose an interaction tool, then manipulate the scene directly. Hover unfamiliar controls for a short explanation."
+            );
+            ImGui::Separator();
+            ImGui::TextUnformatted("Mouse");
+            ImGui::BulletText("Select / throw: drag a particle and release it");
+            ImGui::BulletText("Force pulse: click to apply a temporary field");
+            ImGui::BulletText("Move fields: drag a coloured field ring");
+            ImGui::BulletText("Cut connections: drag across spring lines");
+            ImGui::Separator();
+            ImGui::TextUnformatted("Keyboard");
+            ImGui::BulletText("Tab  switch Laboratory / Canvas");
+            ImGui::BulletText("C  show or hide both control windows");
+            ImGui::BulletText("H  show or hide this help window");
+            ImGui::BulletText("Space  pause or resume");
+            ImGui::BulletText("N  advance one physics step while paused");
+            ImGui::BulletText("R  restart the current preset");
+            ImGui::BulletText("Delete  remove the selected particle");
+            ImGui::BulletText("T / P  Canvas trails / colour palette");
+            ImGui::Separator();
+            ImGui::TextWrapped(
+                "Restart restores the loaded preset. Clear removes the current particles. Loading another preset replaces the scene."
+            );
+            ImGui::End();
         }
 
         if (draggingPointField && selectedPointField &&
@@ -2778,11 +2794,6 @@ int main()
             drawCutBrush();
             ImGui::SFML::Render(window);
             window.display();
-            if (screenshotRequested)
-            {
-                saveScreenshot();
-                screenshotRequested = false;
-            }
             continue;
         }
 
@@ -2859,11 +2870,6 @@ int main()
 
         ImGui::SFML::Render(window);
         window.display();
-        if (screenshotRequested)
-        {
-            saveScreenshot();
-            screenshotRequested = false;
-        }
     }
 
     ImGui::SFML::Shutdown();

@@ -76,7 +76,6 @@ collision response, spatial partitioning, and numerical simulation work beneath 
 - Optional alternating mesh diagonals across every mathematical surface
 - Optional terrain-only diagonals that distinguish triangulated hills from rectangular architecture
 - A dedicated preset window shared by Laboratory and Canvas, organized from physics foundations through advanced wireframe showcases
-- PNG screenshot export with the F12 shortcut or control-panel button
 
 ## Requirements
 
@@ -95,9 +94,6 @@ cmake -S . -B build
 cmake --build build
 ./build/physics-engine
 ```
-
-Screenshots are saved as timestamped PNG files in the local `screenshots/`
-folder. Press `C` before `F12` for a clean scene without control windows.
 
 ## Roadmap
 

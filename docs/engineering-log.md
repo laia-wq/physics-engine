@@ -2,6 +2,19 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Interface guidance and consistent restart
+
+- Removed the unreliable built-in screenshot shortcut and button; macOS screen capture remains the supported capture workflow.
+- Changed explanatory tooltips to appear immediately on hover and to remain available for disabled controls.
+- Added a compact Quick Help window covering direct manipulation and every keyboard shortcut.
+- Added delayed, wrapped tooltips for gravity, wind, restitution, constraints, breakable connections, charge-sensitive fields, spatial partitioning, and restart behavior.
+- Made Help available from the controls and through `H`, including when the two main control windows are hidden with `C`.
+- Consolidated the Restart button and `R` shortcut into the same operation so both restore bodies and springs, remove temporary fields, clear selections and editing state, reset counters and time, and resume the simulation.
+
+### Engineering significance
+
+The interface now explains its less familiar physics concepts without permanently occupying scene space. A single restart pathway also eliminates behavior drift between keyboard and button controls, making experiments easier to reproduce.
+
 ## 2026-09-13 — Add a deterministic performance benchmark
 
 - Added a command-line benchmark for 100, 300, 600, and 1,000-particle collision-search scenes.
