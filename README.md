@@ -115,6 +115,12 @@ flowchart LR
     Core --> Surfaces[mathematical projections]
 ```
 
+- `main.cpp` coordinates user input, controls, simulation timing, and display.
+- `physics-core` contains the reusable physics algorithms and body state.
+- `preset-construction` builds foundational and connected experiments.
+- `artistic-presets` builds the windblown-tree and rolling-terrain showcases.
+- `app-rendering` draws particles, springs, and depth-ordered buildings.
+
 Keeping simulation, scene construction, and rendering separate makes the engine
 easier to understand and allows its physics and presets to be tested without
 opening a graphical window.
