@@ -44,7 +44,7 @@ The preset gallery is organized as a progression through the engine:
 
 See [the preset guide](docs/presets.md) for what every scene demonstrates.
 
-## Build and run on macOS
+## Build from source
 
 Requirements:
 
@@ -166,8 +166,9 @@ Feature development and macOS packaging are complete for the first portfolio
 release. Remaining release work is limited to final media selection and a clean
 release-candidate validation.
 
-### Create the downloadable macOS app
+### Download the macOS app
 
+Download the latest macOS app from GitHub Releases. No compiler, CMake, or SFML installation is required.
 On an Apple-silicon Mac, create the tested self-contained application and ZIP:
 
 ```sh
