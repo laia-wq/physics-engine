@@ -2,6 +2,17 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Extract rolling terrain and retire portrait code
+
+- Removed the unused portrait generator after it had already been removed from the public preset gallery.
+- Moved the full rolling-terrain and city generator into the artistic-presets library, including projection, hills, buildings, windows, depth metadata, paths, boundary meshes, and optional diagonals.
+- Reduced `main.cpp` from 3,914 to 3,061 lines across the portrait removal and terrain extraction.
+- Added checks for dense terrain geometry, valid connections, stable boundary anchors, substantial building geometry, deterministic reconstruction, and diagonal topology.
+
+### Engineering significance
+
+Historical portrait work remains documented in this log, but unused production code no longer adds maintenance cost. The largest showcase scene is now independently constructible and testable, while `main.cpp` only selects its experiment settings.
+
 ## 2026-09-13 — Prevent physics backlog lockup
 
 - Diagnosed a heavy scene rendering at 4 FPS with 10.799 ms physics steps, exceeding the 8.33 ms budget required for 120 Hz simulation.

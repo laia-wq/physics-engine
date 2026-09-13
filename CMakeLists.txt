@@ -55,6 +55,7 @@ enable_project_warnings(physics-core)
 
 add_library(
     artistic-presets
+    src/RollingTerrainPreset.cpp
     src/WindblownTreePreset.cpp
 )
 target_include_directories(artistic-presets PUBLIC include)
@@ -124,6 +125,14 @@ if(BUILD_TESTING)
     target_link_libraries(windblown-tree-preset-tests PRIVATE artistic-presets)
     enable_project_warnings(windblown-tree-preset-tests)
     add_test(NAME windblown-tree-preset COMMAND windblown-tree-preset-tests)
+
+    add_executable(
+        rolling-terrain-preset-tests
+        tests/RollingTerrainPresetTests.cpp
+    )
+    target_link_libraries(rolling-terrain-preset-tests PRIVATE artistic-presets)
+    enable_project_warnings(rolling-terrain-preset-tests)
+    add_test(NAME rolling-terrain-preset COMMAND rolling-terrain-preset-tests)
 
     add_executable(distance-constraint-tests tests/DistanceConstraintTests.cpp)
     target_link_libraries(distance-constraint-tests PRIVATE physics-core)
