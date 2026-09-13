@@ -166,7 +166,7 @@ Feature development and macOS packaging are complete for the first portfolio
 release. Remaining release work is limited to final media selection and a clean
 release-candidate validation.
 
-### Maintainer release build
+### Create the downloadable macOS app
 
 On an Apple-silicon Mac, create the tested self-contained application and ZIP:
 
