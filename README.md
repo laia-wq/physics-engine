@@ -13,9 +13,6 @@ materials, and scene construction are implemented in this repository.
 
 ![Rolling wireframe terrain with depth-ordered buildings](media/rolling-terrain-city.png)
 
-*A projected particle lattice becomes rolling terrain, with depth-ordered
-wireframe buildings placed across its surface.*
-
 ## Highlights
 
 - Fixed 120 Hz simulation independent of rendering speed
