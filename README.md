@@ -64,10 +64,25 @@ See [the preset guide](docs/presets.md) for what every scene demonstrates.
 [Download Particle Physics Laboratory v1.0.0 for Apple-silicon
 Macs](https://github.com/laia-wq/physics-engine/releases/download/v1.0.0/Particle-Physics-Laboratory-macOS-arm64.zip)
 
-Unzip the download and open `Particle Physics Laboratory.app`. Because this
-portfolio build is ad-hoc signed rather than Apple-notarized, macOS may require
-you to Control-click the app, select **Open**, and confirm the first launch.
-Intel Mac users can build the project from source using the instructions below.
+Unzip the download, then move `Particle Physics Laboratory.app` to
+`Applications` if desired.
+
+### First launch on macOS
+
+This portfolio build is ad-hoc signed but is not Apple-notarized, so macOS may
+block its first launch even though the release archive has been verified.
+
+1. Control-click `Particle Physics Laboratory.app` in Finder and select
+   **Open**.
+2. If macOS still shows **“Particle Physics Laboratory” Not Opened**, select
+   **Done**. Do not move the app to Trash.
+3. Open **System Settings → Privacy & Security**.
+4. Scroll to **Security**, find the message about Particle Physics Laboratory,
+   and select **Open Anyway**.
+5. Authenticate with your password or Touch ID, then confirm **Open**.
+
+This approval is normally required only once. Intel Mac users can build the
+project from source using the instructions below.
 
 ## Build from source
 
