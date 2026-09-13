@@ -178,5 +178,6 @@ problems, performance evidence, and the reasoning behind major revisions.
 ## Project status
 
 Feature development and macOS packaging are complete for the first portfolio
-release. Remaining release work is limited to final media selection and a clean
-release-candidate validation.
+release. The documented release candidate has passed the automated test suite,
+benchmark validation, application-signature verification, and ZIP integrity
+check. It is ready to publish as version 1.0.0.
