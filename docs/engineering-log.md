@@ -2,6 +2,18 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Add a deterministic performance benchmark
+
+- Added a command-line benchmark for 100, 300, 600, and 1,000-particle collision-search scenes.
+- Uses fixed particle generation, warm-up runs, and 80 measured repetitions so results can be compared across code changes.
+- Verifies that brute force and the uniform grid find identical contact counts before reporting timing results.
+- Records candidate-pair reduction, average search time, and speedup in a Markdown-ready table.
+- Measured a crossover from `0.75x` at 100 particles to `2.62x` at 1,000 particles; the grid rejected `99.6%` of possible pairs at the largest size.
+
+### Engineering significance
+
+The results show why an optimization should be measured rather than assumed. Spatial partitioning has fixed construction overhead and loses at small scales, but its advantage grows as exhaustive pair counts approach quadratic growth.
+
 ## 2026-09-13 — Extract scene rendering
 
 - Moved particle colouring and selection highlighting into a dedicated application-rendering library.

@@ -86,6 +86,10 @@ target_link_libraries(
     SFML::System
 )
 
+add_executable(performance-benchmark benchmarks/PerformanceBenchmark.cpp)
+target_link_libraries(performance-benchmark PRIVATE physics-core)
+enable_project_warnings(performance-benchmark)
+
 include(CTest)
 
 if(BUILD_TESTING)

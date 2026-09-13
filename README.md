@@ -115,6 +115,8 @@ The reusable `physics-core` library owns body state, integration, boundary respo
 
 Design decisions and experimental results are recorded in
 [`docs/engineering-log.md`](docs/engineering-log.md).
+Repeatable collision-search measurements and reproduction commands are in
+[`docs/performance.md`](docs/performance.md).
 
 ## Status
 
