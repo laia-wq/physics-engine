@@ -395,6 +395,12 @@ int main()
     double physicsStepMilliseconds = 0.0;
     bool physicsBacklogDropped = false;
 
+    const auto enableChargeColors = [&]()
+    {
+        colorByCharge = true;
+        colorByMaterial = false;
+    };
+
     const auto pointFieldAcceleration = [&](const CircleView& view)
     {
         constexpr float VISUAL_FIELD_RESPONSE = 12.f;
@@ -1046,6 +1052,7 @@ int main()
         if (ImGui::Button("Regenerate charges"))
         {
             loadPopulation(populationCount);
+            enableChargeColors();
         }
         ImGui::TreePop();
     };
@@ -1709,10 +1716,13 @@ int main()
 
         if (ImGui::CollapsingHeader("Mutual electrostatics"))
         {
-            ImGui::Checkbox(
+            if (ImGui::Checkbox(
                 "Particles affect each other",
                 &mutualElectrostaticsEnabled
-            );
+            ) && mutualElectrostaticsEnabled)
+            {
+                enableChargeColors();
+            }
             ImGui::SliderFloat(
                 "Electric strength",
                 &electrostaticStrength,
@@ -1818,7 +1828,7 @@ int main()
                     true
                 }};
                 selectedPointField = 0;
-                colorByCharge = true;
+                enableChargeColors();
                 bodyCollisionsEnabled = false;
             }
             ImGui::SameLine();
@@ -1830,7 +1840,7 @@ int main()
                 pointFields.clear();
                 selectedPointField.reset();
                 mutualElectrostaticsEnabled = true;
-                colorByCharge = true;
+                enableChargeColors();
                 bodyCollisionsEnabled = false;
             }
             ImGui::Separator();
@@ -2102,9 +2112,12 @@ int main()
                 ImGui::SliderFloat(
                     "Pulse duration", &pulseDuration, 0.1f, 5.f, "%.1f s"
                 );
-                ImGui::Checkbox(
+                if (ImGui::Checkbox(
                     "Pulse responds to charge", &pulseChargeSensitive
-                );
+                ) && pulseChargeSensitive)
+                {
+                    enableChargeColors();
+                }
                 ImGui::TextDisabled("Click the scene to apply a temporary field");
             }
         }
@@ -2455,7 +2468,12 @@ int main()
             {
                 auto& field = pointFields[*selectedPointField];
                 ImGui::Checkbox("Selected field enabled", &field.enabled);
-                ImGui::Checkbox("Responds to charge", &field.chargeSensitive);
+                if (ImGui::Checkbox(
+                        "Responds to charge", &field.chargeSensitive
+                    ) && field.chargeSensitive)
+                {
+                    enableChargeColors();
+                }
                 explainLastControl(
                     "When enabled, positive and negative particles react in opposite directions; neutral particles ignore this field."
                 );

@@ -2,6 +2,19 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Prepare the public repository and macOS release
+
+- Made every charge-focused action automatically enable charge colouring and disable material colouring, preventing an earlier visualization mode from hiding positive/negative particle identities.
+- Replaced the chronological feature dump with a concise project narrative, verified build instructions, architecture diagram, benchmark evidence, and focused links.
+- Added dedicated controls and preset/concept guides.
+- Added a macOS packaging script that performs a clean Release build, runs all tests, creates a standard application bundle, embeds its non-system libraries, rewrites dynamic-library paths, applies an ad-hoc signature, and produces a ZIP archive.
+- Verified the bundle signature, embedded dependency paths, and ZIP integrity. The resulting Apple-silicon archive is approximately 1.1 MB.
+- Added a GitHub Actions workflow that builds, tests, and validates the benchmark on every main-branch push and pull request.
+
+### Engineering significance
+
+A local executable is not automatically distributable: the original binary referred to libraries inside the developer's Homebrew installation. The packaged application instead resolves SFML, FreeType, and PNG support from its own bundle, giving release users a self-contained artifact.
+
 ## 2026-09-13 — Interface guidance and consistent restart
 
 - Removed the unreliable built-in screenshot shortcut and button; macOS screen capture remains the supported capture workflow.

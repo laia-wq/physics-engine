@@ -1,119 +1,175 @@
-# Physics Engine
+# Particle Physics Laboratory
 
-A 2D physics engine built from scratch in C++17 and visualized with SFML 3.
+[![Build and test](https://github.com/laia-wq/physics-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/laia-wq/physics-engine/actions/workflows/ci.yml)
 
-The project is an engineering sandbox for learning how motion, collision detection,
-collision response, spatial partitioning, and numerical simulation work beneath a game engine.
+An interactive 2D physics engine and generative wireframe laboratory built from
+scratch in C++17. It combines rigid particles, collision algorithms, force
+fields, springs, constraints, and projected mathematical surfaces to turn
+physics experiments into responsive visual art.
 
-## Current features
+The project deliberately uses SFML only for windows and drawing. Motion,
+collisions, spatial partitioning, fields, spring forces, constraint solving,
+materials, and scene construction are implemented in this repository.
 
-- Gravity and velocity-based motion
-- Frame-rate-independent physics at 120 simulation steps per second
-- Circle-circle overlap detection with collision highlighting
-- Mass-aware impulse response and penetration correction
-- Physics model separated from SFML rendering
-- Automated tests for body dynamics and boundary response
-- Circular bodies with configurable radius and restitution
-- Collision response against the window boundaries
-- Simple floor friction and resting-bounce suppression
-- Three-body demonstration scene
-- Click empty space to spawn a circle
-- Drag and release circles to throw them
-- Press `Space` to pause or resume
-- Press `N` to advance one physics step while paused
-- Press `R` to reset the simulation
-- On-screen laboratory panel with live statistics and controls for gravity,
-  spawn radius, restitution, and floor friction
-- Panel buttons to pause, single-step, reset, or clear the simulation
-- Optional debug drawing for body velocities, contact points, and collision normals
-- Live collision-search measurements and reproducible 100- and 300-body stress scenes
-- Optional uniform-grid broad phase that rejects distant collision pairs
-- Visible grid overlay and live candidate-reduction percentage
-- Per-body force accumulation with an interactive wind-force demonstration
-- Persistent object selection with mass, position, velocity, and material data
-- Delete selected bodies from the panel or keyboard
-- Two-dimensional gravity and wind controls for diagonal environmental fields
-- Compact, collapsible laboratory panel with field toggles and reset controls
-- Selected-body net acceleration display for understanding combined fields
-- Two-dimensional vector pads for intuitive field direction and strength
-- Named classic, head-on collision, zero-gravity, and particle-rain scenes
-- Canvas mode with additive colour palettes and optional fading motion trails
-- Press `Tab` to switch modes, `T` for trails, and `P` to cycle palettes
-- Interactive inverse-square attraction, repulsion, vortex, and orbital presets
-- Right-click point-field placement and hideable Canvas controls
-- Spatial-grid stress scenes for 600 and 1,000 field-driven bodies, with experimental collisions
-- Prominent population controls and optional body collisions in both modes
-- Explicit field-placement mode for trackpads and other one-button input
-- Draggable point fields and adjustable aerodynamic wind sensitivity
-- Three-size population mixtures with adjustable radii and clear percentages
-- Independent radius and mass controls for individually spawned bodies
-- One shared physics panel in Laboratory and Canvas views; press `C` to hide it
-- Restart the currently loaded experiment with `R` without changing its fields
-- Multiple independently selectable, draggable, and editable point fields
-- Per-field oscillation controls for pulsing and alternating force patterns
-- Explicit select, force-pulse, body-spawn, and field-editing interaction tools
-- Positive, neutral, and negative particle charges with adjustable mixtures
-- Charge-sensitive permanent fields, temporary pulses, and separation preset
-- Optional particle-to-particle electrostatics with live pair-count profiling
-- Tested like-charge repulsion, opposite-charge attraction, and neutral behavior
-- Damped Hooke-law springs with interactive particle connections
-- Restartable spring-chain preset with visible tension and compression
-- Pinnable anchors, scalable chains and soft-body lattices, and a radial spring web
-- Connected-system trails in Canvas mode and uniformly small default particles
-- Adjustable web topology, pinned-anchor selection, and a 1,200-particle full-screen lattice
-- Optional strain-based spring failure and a tearable full-screen lattice
-- Tested iterative distance constraints with adjustable stiffness and solver passes
-- Direct spring-versus-constraint comparison using the Constraint lattice preset
-- Structural, flexible, fragile, and fixed particle materials with region IDs
-- Material-aware wind, field response, colouring, and connection failure
-- Adjustable region-cutting brush that severs connections without deleting particles
-- Curved particle-mesh apple whose spacing and automatic neighbour connections create its depth cues
-- Detailed windblown tree with nonuniform terrain, tapered trunk and branch meshes, and negative-space foliage
-- Full-screen projected 3D wireframe terrain with an elevated perspective camera and continuous hills, ridges, and valleys
-- Rigid 3D wireframe buildings with terrain-following foundations, precise terrain occlusion, stretched roof and side meshes, and visible window grids
-- A smooth winding central path with individually curved access branches to every building
-- Mathematical wireframes: heart, torus, Mobius strip, sphere, wave surface, double-well field, and adjustable spacetime distortion
-- Optional alternating mesh diagonals across every mathematical surface
-- Optional terrain-only diagonals that distinguish triangulated hills from rectangular architecture
-- A dedicated preset window shared by Laboratory and Canvas, organized from physics foundations through advanced wireframe showcases
+> Portfolio media will be added before the first public release. The final
+> README will open with a short demonstration and selected showcase images.
 
-## Requirements
+## Highlights
 
-- A C++17-compatible compiler
+- Fixed 120 Hz simulation independent of rendering speed
+- Mass-aware circle collisions with impulse response and penetration correction
+- Brute-force and uniform-grid broad phases with live diagnostics
+- Gravity, aerodynamic wind, electrostatics, attractors, repulsors, vortices,
+  oscillating fields, and temporary force pulses
+- Hooke-law springs, iterative distance constraints, pinned particles, and
+  strain-based tearing
+- Structural, flexible, fragile, and fixed particle materials
+- Direct manipulation: spawn, select, inspect, throw, pin, delete, connect, and cut
+- Laboratory and trail-based Canvas views sharing the same controls and presets
+- Projected wireframe forms and detailed deformable scenes that create apparent
+  3D depth inside a 2D engine
+- Ten automated test suites and a deterministic performance benchmark
+
+## Showcase
+
+The preset gallery is organized as a progression through the engine:
+
+1. **Physics foundations** — collisions, zero-gravity motion, rain, and charge
+2. **Connected systems** — chains, spring meshes, constraints, webs, and tearing
+3. **Interactive fields** — attraction, repulsion, vortices, and orbital motion
+4. **Mathematical forms** — heart, torus, Mobius strip, sphere, waves,
+   double-well surface, and spacetime-distortion analogy
+5. **Wireframe artwork** — particle apple, windblown tree, and rolling terrain
+   with depth-ordered buildings and paths
+
+See [the preset guide](docs/presets.md) for what every scene demonstrates.
+
+## Build and run on macOS
+
+Requirements:
+
+- Apple silicon or Intel Mac
+- C++17-compatible compiler (Apple Clang is included with Xcode Command Line Tools)
 - CMake 3.22 or newer
 - SFML 3
 
-CMake downloads pinned versions of Dear ImGui and ImGui-SFML the first time the
-project is configured. They provide the control-panel widgets; all simulation
-and collision physics remain implemented in this repository.
-
-## Build and run
+Install the build tools with [Homebrew](https://brew.sh/):
 
 ```sh
-cmake -S . -B build
-cmake --build build
+xcode-select --install
+brew install cmake sfml
+```
+
+Build and run:
+
+```sh
+git clone https://github.com/laia-wq/physics-engine.git
+cd physics-engine
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
 ./build/physics-engine
 ```
 
-## Roadmap
+CMake downloads the pinned Dear ImGui and ImGui-SFML versions during the first
+configuration. They provide interface widgets but do not provide simulation
+physics.
 
-- Rotating rectangular rigid bodies
-- Stable friction and resting contacts
-- Automated performance benchmark executable
-- Automated tests and performance benchmarks
-- Multiple simultaneous contact solving
+## Controls
+
+| Input | Action |
+|---|---|
+| Left drag | Use the selected interaction tool |
+| `Tab` | Switch between Laboratory and Canvas |
+| `C` | Show or hide both main control windows |
+| `H` | Show or hide Quick Help |
+| `Space` | Pause or resume |
+| `N` | Advance one physics step while paused |
+| `R` | Restart the current preset |
+| `Delete` / `Backspace` | Delete the selected particle |
+| `T` | Toggle Canvas trails |
+| `P` | Cycle Canvas colour palettes |
+
+The full interaction and interface reference is in
+[the controls guide](docs/controls.md). On macOS, use `Command-Shift-5` to record
+or capture a clean scene after hiding controls with `C`.
 
 ## Architecture
 
-The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, point-field forces, and mathematical-surface projection. Preset libraries define reproducible foundational and artistic scenes. A dedicated renderer owns particle appearance, spring lines, and depth-ordered building occlusion, while the SFML application coordinates simulation, controls, and display. These boundaries keep physics and scene construction testable without opening a window.
+```mermaid
+flowchart LR
+    UI[SFML + ImGui application] --> Core[physics-core]
+    UI --> Presets[preset libraries]
+    UI --> Renderer[scene renderer]
+    Presets --> Core
+    Renderer --> Core
+    Tests[10 test executables] --> Core
+    Tests --> Presets
+    Benchmark[performance benchmark] --> Core
 
-## Engineering notes
+    Core --> Dynamics[body dynamics and collisions]
+    Core --> Fields[fields and electrostatics]
+    Core --> Connected[springs and constraints]
+    Core --> Surfaces[mathematical projections]
+```
 
-Design decisions and experimental results are recorded in
-[`docs/engineering-log.md`](docs/engineering-log.md).
-Repeatable collision-search measurements and reproduction commands are in
-[`docs/performance.md`](docs/performance.md).
+- `physics-core` owns reusable simulation algorithms and state.
+- `preset-construction` and `artistic-presets` build deterministic scenes.
+- `app-rendering` owns particle appearance, spring drawing, and building occlusion.
+- `main.cpp` coordinates input, controls, simulation timing, presets, and display.
 
-## Status
+This separation allows physics and scene construction to be tested without
+opening a graphical window.
 
-This project is under active development. The current boundary-collision demo is the baseline for the full physics engine.
+## Testing
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
+ctest --test-dir build --output-on-failure
+```
+
+The suites cover collisions, body integration and bounds, spatial partitioning,
+electrostatics, point fields, damped springs, iterative constraints, preset
+restart behavior, and the two most complex artistic scene generators.
+
+## Performance
+
+The deterministic collision-search benchmark verifies that the uniform grid
+finds the same contacts as exhaustive search before recording timing results.
+On the development Mac, the grid reduced 499,500 possible pairs to 1,957
+candidates at 1,000 particles and completed the search **2.62x faster**.
+
+```sh
+./build/performance-benchmark
+```
+
+See [the benchmark methodology and full results](docs/performance.md).
+
+## Engineering documentation
+
+- [Controls guide](docs/controls.md)
+- [Preset and concept guide](docs/presets.md)
+- [Performance methodology](docs/performance.md)
+- [Engineering log](docs/engineering-log.md)
+
+The engineering log records design decisions, failed approaches, stability
+problems, performance evidence, and the reasoning behind major revisions.
+
+## Project status
+
+Feature development and macOS packaging are complete for the first portfolio
+release. Remaining release work is limited to final media selection and a clean
+release-candidate validation.
+
+### Maintainer release build
+
+On an Apple-silicon Mac, create the tested self-contained application and ZIP:
+
+```sh
+./scripts/package-macos.sh
+```
+
+The release archive is written to `dist/` and contains the required SFML,
+FreeType, and PNG libraries. The app is ad-hoc signed rather than notarized, so
+macOS may require the user to right-click the app and choose **Open** the first
+time.

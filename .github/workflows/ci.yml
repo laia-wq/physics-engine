@@ -1,0 +1,28 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install SFML
+        run: brew install sfml
+
+      - name: Configure release build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build -j4
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run collision-search benchmark validation
+        run: ./build/performance-benchmark
