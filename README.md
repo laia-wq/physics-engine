@@ -79,7 +79,7 @@ block its first launch even though the release archive has been verified.
 3. Open **System Settings → Privacy & Security**.
 4. Scroll to **Security**, find the message about Particle Physics Laboratory,
    and select **Open Anyway**.
-5. Authenticate with your password or Touch ID, then confirm **Open**.
+5. Authenticate with your password or Touch ID, and you're in!
 
 This approval is normally required only once. Intel Mac users can build the
 project from source using the instructions below.
