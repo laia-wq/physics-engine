@@ -59,6 +59,16 @@ See [the preset guide](docs/presets.md) for what every scene demonstrates.
 |---|---|
 | ![A projected mathematical wave surface](media/wave-surface.png) | ![A connected particle lattice tearing under force](media/tearing-lattice.png) |
 
+## Download macOS app
+
+[Download Particle Physics Laboratory v1.0.0 for Apple-silicon
+Macs](https://github.com/laia-wq/physics-engine/releases/download/v1.0.0/Particle-Physics-Laboratory-macOS-arm64.zip)
+
+Unzip the download and open `Particle Physics Laboratory.app`. Because this
+portfolio build is ad-hoc signed rather than Apple-notarized, macOS may require
+you to Control-click the app, select **Open**, and confirm the first launch.
+Intel Mac users can build the project from source using the instructions below.
+
 ## Build from source
 
 Requirements:
