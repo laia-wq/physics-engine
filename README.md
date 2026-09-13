@@ -44,6 +44,14 @@ The preset gallery is organized as a progression through the engine:
 
 See [the preset guide](docs/presets.md) for what every scene demonstrates.
 
+## Download the macOS app
+
+Download the self-contained Apple-silicon application from
+[the latest GitHub Release](https://github.com/laia-wq/physics-engine/releases/latest).
+No compiler, CMake, or SFML installation is required. Because the app is not
+Apple-notarized, macOS may require you to right-click it and choose **Open** the
+first time.
+
 ## Build from source
 
 Requirements:
@@ -166,16 +174,5 @@ Feature development and macOS packaging are complete for the first portfolio
 release. Remaining release work is limited to final media selection and a clean
 release-candidate validation.
 
-### Download the macOS app
-
-Download the latest macOS app from GitHub Releases. No compiler, CMake, or SFML installation is required.
-On an Apple-silicon Mac, create the tested self-contained application and ZIP:
-
-```sh
-./scripts/package-macos.sh
-```
-
-The release archive is written to `dist/` and contains the required SFML,
-FreeType, and PNG libraries. The app is ad-hoc signed rather than notarized, so
-macOS may require the user to right-click the app and choose **Open** the first
-time.
+Release-maintainer instructions are documented in
+[the release guide](docs/releasing.md).
