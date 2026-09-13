@@ -26,6 +26,21 @@ bool sameBody(
         first.velocity == second.velocity &&
         first.restitution == second.restitution;
 }
+
+bool hasValidConnections(const presets::ConnectedPreset& preset)
+{
+    for (const auto& connection : preset.connections)
+    {
+        if (connection.first >= preset.bodies.size() ||
+            connection.second >= preset.bodies.size() ||
+            connection.first == connection.second ||
+            connection.restLength <= 0.f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
 }
 
 int main()
@@ -55,6 +70,32 @@ int main()
            "reloading a preset restores its initial body state");
     expect(!sameBody(running.front(), restarted.front()),
            "restart data is independent of mutated simulation data");
+
+    const auto chain = presets::buildSpringChain(80, 20.f, 800.f, 8000.f, 300.f);
+    expect(chain.bodies.size() == 80 && chain.connections.size() == 79,
+           "chain connects every adjacent particle exactly once");
+    expect(chain.pinnedBodies.size() == 1 && chain.pinnedBodies[0] == 0,
+           "chain pins its first particle");
+    expect(hasValidConnections(chain), "chain connection indices are valid");
+
+    const auto lattice =
+        presets::buildSoftBodyLattice(12, 8, 20.f, 800.f, 600.f);
+    const std::size_t expectedLatticeConnections =
+        8 * 11 + 7 * 12 + 2 * 7 * 11;
+    expect(lattice.bodies.size() == 96 &&
+               lattice.connections.size() == expectedLatticeConnections,
+           "lattice builds horizontal, vertical, and diagonal connections");
+    expect(lattice.pinnedBodies.size() == 2,
+           "lattice pins both top corners");
+    expect(hasValidConnections(lattice),
+           "lattice connection indices are valid");
+
+    const auto web = presets::buildRadialWeb(6, 16);
+    expect(web.bodies.size() == 97 && web.connections.size() == 192,
+           "web builds rings and radial spokes");
+    expect(web.pinnedBodies.size() == 1 && web.pinnedBodies[0] == 0,
+           "web pins its center particle");
+    expect(hasValidConnections(web), "web connection indices are valid");
 
     if (failures == 0)
     {

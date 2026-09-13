@@ -570,58 +570,50 @@ int main()
         accumulator = 0.f;
     };
 
-    const auto loadSpringChain = [&](std::size_t bodyCount)
+    const auto instantiateConnectedPreset = [&](const presets::ConnectedPreset& preset)
     {
         bodies.clear();
         springs.clear();
+        bodies.reserve(preset.bodies.size());
+        springs.reserve(preset.connections.size());
+        for (const auto& definition : preset.bodies)
+        {
+            bodies.emplace_back(
+                definition.radius,
+                definition.position,
+                definition.velocity,
+                definition.restitution
+            );
+        }
+        for (const auto& connection : preset.connections)
+        {
+            springs.push_back({
+                connection.first,
+                connection.second,
+                connection.restLength,
+                connection.stiffness,
+                connection.damping
+            });
+        }
+        for (const std::size_t index : preset.pinnedBodies)
+        {
+            if (index < bodies.size())
+            {
+                bodies[index].body.inverseMass = 0.f;
+            }
+        }
+    };
+
+    const auto loadSpringChain = [&](std::size_t bodyCount)
+    {
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         cutConnectionCount = 0;
-        constexpr float RADIUS = 5.f;
-        const float spacing = generatedStructureSpacing;
-        const std::size_t columns = std::max(
-            static_cast<std::size_t>((windowWidth - 80.f) / spacing),
-            static_cast<std::size_t>(2)
-        );
-        const std::size_t rowCount = (bodyCount + columns - 1) / columns;
-        const float rowSpacing = rowCount > 1
-            ? std::min(spacing, 480.f / static_cast<float>(rowCount - 1))
-            : spacing;
-        for (std::size_t index = 0; index < bodyCount; ++index)
-        {
-            const std::size_t row = index / columns;
-            const std::size_t columnInRow = index % columns;
-            const std::size_t column = row % 2 == 0
-                ? columnInRow
-                : columns - 1 - columnInRow;
-            bodies.emplace_back(
-                RADIUS,
-                sf::Vector2f(
-                    35.f + static_cast<float>(column) * spacing,
-                    55.f + static_cast<float>(row) * rowSpacing
-                ),
-                sf::Vector2f(0.f, 0.f),
-                0.5f
-            );
-            if (index > 0)
-            {
-                const sf::Vector2f difference =
-                    bodies[index].body.center() -
-                    bodies[index - 1].body.center();
-                const float restLength = std::sqrt(
-                    difference.x * difference.x + difference.y * difference.y
-                );
-                springs.push_back({
-                    index - 1,
-                    index,
-                    restLength,
-                    newSpringStiffness,
-                    newSpringDamping
-                });
-            }
-        }
-        bodies.front().body.inverseMass = 0.f;
+        instantiateConnectedPreset(presets::buildSpringChain(
+            bodyCount, generatedStructureSpacing, windowWidth,
+            newSpringStiffness, newSpringDamping
+        ));
         restartBodies = bodies;
         restartSprings = springs;
         selectedBody.reset();
@@ -641,74 +633,14 @@ int main()
 
     const auto loadSoftBodyLattice = [&](std::size_t columns, std::size_t rows)
     {
-        bodies.clear();
-        springs.clear();
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         cutConnectionCount = 0;
-        constexpr float RADIUS = 5.f;
-        const float spacing = std::min({
-            generatedStructureSpacing,
-            (windowWidth - 20.f) / static_cast<float>(columns - 1),
-            (windowHeight - 20.f) / static_cast<float>(rows - 1)
-        });
-        const float startX = (windowWidth -
-            static_cast<float>(columns - 1) * spacing) * 0.5f - RADIUS;
-        const float startY = (windowHeight -
-            static_cast<float>(rows - 1) * spacing) * 0.5f - RADIUS;
-        for (std::size_t row = 0; row < rows; ++row)
-        {
-            for (std::size_t column = 0; column < columns; ++column)
-            {
-                bodies.emplace_back(
-                    RADIUS,
-                    sf::Vector2f(
-                        startX + static_cast<float>(column) * spacing,
-                        startY + static_cast<float>(row) * spacing
-                    ),
-                    sf::Vector2f(0.f, 0.f),
-                    0.35f
-                );
-            }
-        }
-        const auto connect = [&](std::size_t first, std::size_t second)
-        {
-            const sf::Vector2f difference =
-                bodies[second].body.center() - bodies[first].body.center();
-            springs.push_back({
-                first,
-                second,
-                std::sqrt(difference.x * difference.x + difference.y * difference.y),
-                6500.f,
-                260.f
-            });
-        };
-        for (std::size_t row = 0; row < rows; ++row)
-        {
-            for (std::size_t column = 0; column < columns; ++column)
-            {
-                const std::size_t index = row * columns + column;
-                if (column + 1 < columns)
-                {
-                    connect(index, index + 1);
-                }
-                if (row + 1 < rows)
-                {
-                    connect(index, index + columns);
-                }
-                if (row + 1 < rows && column + 1 < columns)
-                {
-                    connect(index, index + columns + 1);
-                }
-                if (row + 1 < rows && column > 0)
-                {
-                    connect(index, index + columns - 1);
-                }
-            }
-        }
-        bodies[0].body.inverseMass = 0.f;
-        bodies[columns - 1].body.inverseMass = 0.f;
+        instantiateConnectedPreset(presets::buildSoftBodyLattice(
+            columns, rows, generatedStructureSpacing,
+            windowWidth, windowHeight
+        ));
         restartBodies = bodies;
         restartSprings = springs;
         firstSpringBody.reset();
@@ -2362,68 +2294,13 @@ int main()
     const auto loadRadialWeb = [&](std::size_t ringCount,
                                    std::size_t spokeCount)
     {
-        bodies.clear();
-        springs.clear();
         useDistanceConstraints = false;
         breakableSprings = false;
         brokenSpringCount = 0;
         cutConnectionCount = 0;
-        constexpr float PI = 3.14159265359f;
-        const sf::Vector2f center(400.f, 270.f);
-        const float ringSpacing = 220.f / static_cast<float>(ringCount);
-        bodies.emplace_back(
-            6.f, center - sf::Vector2f(6.f, 6.f),
-            sf::Vector2f(0.f, 0.f), 0.4f
+        instantiateConnectedPreset(
+            presets::buildRadialWeb(ringCount, spokeCount)
         );
-        bodies[0].body.inverseMass = 0.f;
-
-        for (std::size_t ring = 0; ring < ringCount; ++ring)
-        {
-            const float distance = ringSpacing * static_cast<float>(ring + 1);
-            for (std::size_t spoke = 0; spoke < spokeCount; ++spoke)
-            {
-                const float angle = 2.f * PI * static_cast<float>(spoke) /
-                    static_cast<float>(spokeCount);
-                const sf::Vector2f radial(std::cos(angle), std::sin(angle));
-                const sf::Vector2f tangent(-radial.y, radial.x);
-                bodies.emplace_back(
-                    4.f,
-                    center + radial * distance - sf::Vector2f(4.f, 4.f),
-                    tangent * (18.f + static_cast<float>(ring) * 4.f),
-                    0.4f
-                );
-            }
-        }
-
-        const auto connect = [&](std::size_t first, std::size_t second)
-        {
-            const sf::Vector2f difference =
-                bodies[second].body.center() - bodies[first].body.center();
-            springs.push_back({
-                first,
-                second,
-                std::sqrt(difference.x * difference.x + difference.y * difference.y),
-                9000.f,
-                190.f
-            });
-        };
-        for (std::size_t ring = 0; ring < ringCount; ++ring)
-        {
-            const std::size_t ringStart = 1 + ring * spokeCount;
-            for (std::size_t spoke = 0; spoke < spokeCount; ++spoke)
-            {
-                connect(ringStart + spoke,
-                    ringStart + (spoke + 1) % spokeCount);
-                if (ring == 0)
-                {
-                    connect(0, ringStart + spoke);
-                }
-                else
-                {
-                    connect(ringStart - spokeCount + spoke, ringStart + spoke);
-                }
-            }
-        }
 
         restartBodies = bodies;
         restartSprings = springs;

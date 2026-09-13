@@ -2,6 +2,18 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Extract connected preset topology
+
+- Moved spring-chain, soft-body lattice, and radial-web particle placement and connection generation into the preset-construction library.
+- Added one application adapter that converts data-only particle and connection definitions into rendered simulation objects.
+- Preserved configurable chain stiffness, damping, spacing, lattice dimensions, and web ring/spoke counts.
+- Added topology checks for body and connection counts, pinned anchors, positive rest lengths, and valid connection indices.
+- Reduced `main.cpp` from 4,592 to 4,469 lines.
+
+### Engineering significance
+
+The preset library now owns both independent-particle scenes and connected graph structures. The interface only chooses parameters and applies the resulting scene, which is a cleaner separation between UI decisions and scene construction.
+
 ## 2026-09-13 — Extract foundational preset construction
 
 - Added a dedicated preset-construction library for Classic, stress, head-on collision, zero-gravity, rain, and orbit scenes.
