@@ -2,6 +2,17 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Extract the particle-mesh apple
+
+- Moved the apple's nonlinear silhouette profile, projected depth spacing, body mesh, structural stem, materials, anchors, and connection graph into the preset library.
+- Extended data-only preset definitions with material, group, and fixed-outline metadata so artistic scenes retain their physical and visual meaning outside `main.cpp`.
+- Added checks for all 1,674 particles, 6,425 connections, flexible fruit material, fixed stem tip, and valid topology.
+- Reduced `main.cpp` from 4,469 to 4,310 lines.
+
+### Engineering significance
+
+The apple now documents the project's central visual technique in reusable code: nonlinear spacing and connected projected points create apparent volume without a 3D renderer. Its interface loader contains only scene-level physics settings.
+
 ## 2026-09-13 — Extract connected preset topology
 
 - Moved spring-chain, soft-body lattice, and radial-web particle placement and connection generation into the preset-construction library.

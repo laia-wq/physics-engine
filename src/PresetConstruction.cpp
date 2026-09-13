@@ -1,6 +1,8 @@
 #include "presets/PresetConstruction.hpp"
 
 #include <cmath>
+#include <array>
+#include <utility>
 
 namespace presets
 {
@@ -292,6 +294,133 @@ ConnectedPreset buildRadialWeb(
         }
     }
     preset.pinnedBodies.push_back(0);
+    return preset;
+}
+
+ConnectedPreset buildParticleApple(float width, float height)
+{
+    constexpr std::size_t COLUMNS = 37;
+    constexpr std::size_t ROWS = 45;
+    constexpr float RADIUS = 1.9f;
+    constexpr float PI = 3.14159265359f;
+    const sf::Vector2f center(width * 0.5f, height * 0.52f);
+    ConnectedPreset preset;
+    preset.bodies.reserve(COLUMNS * ROWS + 9);
+    std::vector<std::size_t> particleAt(COLUMNS * ROWS);
+
+    constexpr std::array<std::pair<float, float>, 10> profile{{
+        {-1.00f, 0.24f}, {-0.88f, 0.60f}, {-0.68f, 0.88f},
+        {-0.38f, 1.00f}, {-0.05f, 0.98f}, {0.28f, 0.93f},
+        {0.55f, 0.80f}, {0.76f, 0.61f}, {0.92f, 0.31f},
+        {1.00f, 0.21f}
+    }};
+    for (std::size_t row = 0; row < ROWS; ++row)
+    {
+        for (std::size_t column = 0; column < COLUMNS; ++column)
+        {
+            const float v = -0.94f + 1.88f * static_cast<float>(row) /
+                static_cast<float>(ROWS - 1);
+            const float u = -1.f + 2.f * static_cast<float>(column) /
+                static_cast<float>(COLUMNS - 1);
+            const float projectedU = std::sin(u * PI * 0.5f);
+            const float projectedV = std::sin(v * PI * 0.5f);
+            const float roundness = std::sqrt(std::max(
+                0.f, 1.f - projectedV * projectedV
+            ));
+            float widthScale = profile.back().second;
+            for (std::size_t sample = 1; sample < profile.size(); ++sample)
+            {
+                if (projectedV <= profile[sample].first)
+                {
+                    const auto [previousV, previousWidth] = profile[sample - 1];
+                    const auto [nextV, nextWidth] = profile[sample];
+                    const float amount =
+                        (projectedV - previousV) / (nextV - previousV);
+                    widthScale = previousWidth +
+                        amount * (nextWidth - previousWidth);
+                    break;
+                }
+            }
+            const float halfWidth = 174.f * widthScale;
+            const float frontBulge = std::cos(u * PI * 0.5f) * roundness;
+            const float topNotch = projectedV < -0.78f
+                ? 11.f * std::pow(1.f - std::abs(u), 3.f) *
+                    (-projectedV - 0.78f) / 0.22f
+                : 0.f;
+            const float bottomDimple = projectedV > 0.86f
+                ? -5.f * std::pow(1.f - std::abs(u), 3.f) *
+                    (projectedV - 0.86f) / 0.14f
+                : 0.f;
+            const sf::Vector2f particleCenter(
+                center.x + projectedU * halfWidth + 8.f * frontBulge,
+                center.y + projectedV * 180.f + topNotch + bottomDimple -
+                    6.f * frontBulge
+            );
+            particleAt[row * COLUMNS + column] = preset.bodies.size();
+            preset.bodies.push_back({
+                RADIUS,
+                particleCenter - sf::Vector2f(RADIUS, RADIUS),
+                {0.f, 0.f},
+                0.25f,
+                Material::Flexible,
+                1
+            });
+        }
+    }
+
+    std::size_t previousStem = 0;
+    const std::size_t firstStem = preset.bodies.size();
+    for (std::size_t index = 0; index < 9; ++index)
+    {
+        const float t = static_cast<float>(index);
+        preset.bodies.push_back({
+            RADIUS,
+            center + sf::Vector2f(5.f + t * 1.6f, -190.f - t * 7.f) -
+                sf::Vector2f(RADIUS, RADIUS),
+            {0.f, 0.f},
+            0.25f,
+            index == 8 ? Material::Fixed : Material::Structural,
+            2
+        });
+        const std::size_t current = preset.bodies.size() - 1;
+        if (index > 0)
+        {
+            connect(preset, previousStem, current, 6500.f, 260.f);
+        }
+        previousStem = current;
+    }
+    preset.pinnedBodies.push_back(preset.bodies.size() - 1);
+
+    for (std::size_t row = 0; row < ROWS; ++row)
+    {
+        for (std::size_t column = 0; column < COLUMNS; ++column)
+        {
+            const std::size_t current = particleAt[row * COLUMNS + column];
+            if (column + 1 < COLUMNS)
+            {
+                connect(preset, current, particleAt[row * COLUMNS + column + 1],
+                        6500.f, 260.f);
+            }
+            if (row + 1 < ROWS)
+            {
+                connect(preset, current, particleAt[(row + 1) * COLUMNS + column],
+                        6500.f, 260.f);
+                if (column + 1 < COLUMNS)
+                {
+                    connect(preset, current,
+                            particleAt[(row + 1) * COLUMNS + column + 1],
+                            6500.f, 260.f);
+                }
+                if (column > 0)
+                {
+                    connect(preset, current,
+                            particleAt[(row + 1) * COLUMNS + column - 1],
+                            6500.f, 260.f);
+                }
+            }
+        }
+    }
+    connect(preset, particleAt[COLUMNS / 2], firstStem, 6500.f, 260.f);
     return preset;
 }
 }

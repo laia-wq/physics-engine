@@ -7,6 +7,14 @@
 
 namespace presets
 {
+enum class Material
+{
+    Structural,
+    Flexible,
+    Fragile,
+    Fixed
+};
+
 enum class FoundationPreset
 {
     Classic,
@@ -23,6 +31,9 @@ struct BodyDefinition
     sf::Vector2f position;
     sf::Vector2f velocity;
     float restitution;
+    Material material = Material::Flexible;
+    int groupId = 0;
+    bool showFixedOutline = true;
 };
 
 struct ConnectionDefinition
@@ -66,4 +77,6 @@ ConnectedPreset buildRadialWeb(
     std::size_t ringCount,
     std::size_t spokeCount
 );
+
+ConnectedPreset buildParticleApple(float width, float height);
 }

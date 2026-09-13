@@ -97,6 +97,18 @@ int main()
            "web pins its center particle");
     expect(hasValidConnections(web), "web connection indices are valid");
 
+    const auto apple = presets::buildParticleApple(800.f, 600.f);
+    expect(apple.bodies.size() == 1674 && apple.connections.size() == 6425,
+           "apple builds its curved body mesh and attached stem");
+    expect(apple.pinnedBodies.size() == 1 &&
+               apple.pinnedBodies[0] == apple.bodies.size() - 1,
+           "apple pins the tip of its structural stem");
+    expect(apple.bodies.front().material == presets::Material::Flexible &&
+               apple.bodies.back().material == presets::Material::Fixed,
+           "apple preserves flexible fruit and fixed stem materials");
+    expect(hasValidConnections(apple),
+           "apple connection indices and rest lengths are valid");
+
     if (failures == 0)
     {
         std::cout << "All preset construction tests passed.\n";
