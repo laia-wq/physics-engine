@@ -2,6 +2,30 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Prevent physics backlog lockup
+
+- Diagnosed a heavy scene rendering at 4 FPS with 10.799 ms physics steps, exceeding the 8.33 ms budget required for 120 Hz simulation.
+- Capped automatic physics work at two fixed substeps per rendered frame.
+- Discards overdue whole steps when the cap is reached, while retaining the fractional accumulator remainder for stable stepping.
+- Added a visible overload message in Performance when protection activates.
+
+### Engineering significance
+
+An unlimited fixed-timestep catch-up loop can enter a feedback cycle commonly called the spiral of death: slow physics creates a backlog, processing the backlog delays rendering, and that delay creates still more backlog. The cap preserves input and interface responsiveness under overload without reducing scene geometry.
+
+## 2026-09-13 — Extract particle presentation and windblown tree
+
+- Moved the graphical particle wrapper, material names, colours, field response, and breaking response into an application presentation module.
+- Moved the full windblown-tree generator into an artistic-presets library: hill mesh, layered trunk, irregular branches, foliage clusters, anchors, and leaf attachments.
+- Kept only the tree's experiment-level settings in `main.cpp`, including wind, constraint iterations, collisions, and restart state.
+- Added automated checks for valid connections, stable anchors, fragile foliage, detailed mesh size, and deterministic reconstruction after mutation.
+- Kept per-particle material and shape helpers inline in their new header. These functions run thousands of times per frame in detailed scenes, so retaining inlining avoids a responsiveness regression while preserving the module boundary.
+- Reduced `main.cpp` from 4,310 to 3,893 lines.
+
+### Engineering significance
+
+The tree is now an independently constructible scene rather than several hundred lines inside the UI application. Separating `CircleView` also creates a shared presentation boundary for later rendering and artistic-preset extraction.
+
 ## 2026-09-13 — Extract the particle-mesh apple
 
 - Moved the apple's nonlinear silhouette profile, projected depth spacing, body mesh, structural stem, materials, anchors, and connection graph into the preset library.

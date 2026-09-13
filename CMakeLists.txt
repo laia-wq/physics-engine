@@ -53,6 +53,14 @@ target_include_directories(physics-core PUBLIC include)
 target_link_libraries(physics-core PUBLIC SFML::System)
 enable_project_warnings(physics-core)
 
+add_library(
+    artistic-presets
+    src/WindblownTreePreset.cpp
+)
+target_include_directories(artistic-presets PUBLIC include)
+target_link_libraries(artistic-presets PUBLIC physics-core SFML::Graphics)
+enable_project_warnings(artistic-presets)
+
 add_executable(physics-engine src/main.cpp)
 enable_project_warnings(physics-engine)
 
@@ -63,8 +71,8 @@ enable_project_warnings(preset-construction)
 
 target_link_libraries(
     physics-engine
-    physics-core
     preset-construction
+    artistic-presets
     ImGui-SFML::ImGui-SFML
     SFML::Graphics
     SFML::Window
@@ -108,6 +116,14 @@ if(BUILD_TESTING)
     target_link_libraries(preset-construction-tests PRIVATE preset-construction)
     enable_project_warnings(preset-construction-tests)
     add_test(NAME preset-restart-load COMMAND preset-construction-tests)
+
+    add_executable(
+        windblown-tree-preset-tests
+        tests/WindblownTreePresetTests.cpp
+    )
+    target_link_libraries(windblown-tree-preset-tests PRIVATE artistic-presets)
+    enable_project_warnings(windblown-tree-preset-tests)
+    add_test(NAME windblown-tree-preset COMMAND windblown-tree-preset-tests)
 
     add_executable(distance-constraint-tests tests/DistanceConstraintTests.cpp)
     target_link_libraries(distance-constraint-tests PRIVATE physics-core)
