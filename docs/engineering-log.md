@@ -2,6 +2,17 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Extract scene rendering
+
+- Moved particle colouring and selection highlighting into a dedicated application-rendering library.
+- Moved spring rendering, tension/compression colours, building silhouettes, and back-to-front building ordering out of `main.cpp`.
+- Preserved the existing Canvas and Laboratory draw order so buildings continue to hide terrain and more distant structures correctly.
+- Reduced `main.cpp` from 3,061 to 2,871 lines and kept the complete automated suite passing.
+
+### Engineering significance
+
+The application loop now decides *when* a scene is drawn while the renderer owns *how* its visual layers are composed. Keeping occlusion and depth ordering together prevents later interface work from accidentally changing the visual meaning of the city preset.
+
 ## 2026-09-13 — Extract rolling terrain and retire portrait code
 
 - Removed the unused portrait generator after it had already been removed from the public preset gallery.

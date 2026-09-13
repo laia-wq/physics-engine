@@ -65,6 +65,11 @@ enable_project_warnings(artistic-presets)
 add_executable(physics-engine src/main.cpp)
 enable_project_warnings(physics-engine)
 
+add_library(app-rendering src/SceneRenderer.cpp)
+target_include_directories(app-rendering PUBLIC include)
+target_link_libraries(app-rendering PUBLIC physics-core SFML::Graphics)
+enable_project_warnings(app-rendering)
+
 add_library(preset-construction src/PresetConstruction.cpp)
 target_include_directories(preset-construction PUBLIC include)
 target_link_libraries(preset-construction PUBLIC SFML::System)
@@ -74,6 +79,7 @@ target_link_libraries(
     physics-engine
     preset-construction
     artistic-presets
+    app-rendering
     ImGui-SFML::ImGui-SFML
     SFML::Graphics
     SFML::Window

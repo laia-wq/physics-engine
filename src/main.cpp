@@ -4,6 +4,7 @@
 #include <imgui.h>
 
 #include "app/ParticleView.hpp"
+#include "app/SceneRenderer.hpp"
 #include "physics/BroadPhase.hpp"
 #include "physics/Collision.hpp"
 #include "physics/DistanceConstraint.hpp"
@@ -2632,216 +2633,31 @@ int main()
             physicsBacklogDropped = true;
         }
 
-        for (auto& view : bodies)
-        {
-            const sf::Color chargeColor = view.body.charge > 0.1f
-                ? sf::Color(255, 110, 80)
-                : (view.body.charge < -0.1f
-                    ? sf::Color(70, 170, 255)
-                    : sf::Color::White);
-            view.shape.setFillColor(colorByMaterial
-                ? materialColor(view.material)
-                : (colorByCharge ? chargeColor : sf::Color::White));
-            view.shape.setOutlineColor(sf::Color(255, 215, 70));
-            view.shape.setOutlineThickness(
-                view.body.inverseMass == 0.f && view.showFixedOutline ? 3.f : 0.f
-            );
-            if (view.groupId == 58)
-            {
-                view.shape.setFillColor(sf::Color::Black);
-                view.shape.setOutlineColor(sf::Color(110, 165, 255));
-                view.shape.setOutlineThickness(3.f);
-            }
-            view.sync();
-        }
-
-        if (bodyCollisionsEnabled)
-        {
-            for (std::size_t first = 0; first < bodies.size(); ++first)
-            {
-                for (std::size_t second = first + 1;
-                     second < bodies.size(); ++second)
-                {
-                    if (physics::circlesOverlap(
-                            bodies[first].body.center(),
-                            bodies[first].body.radius,
-                            bodies[second].body.center(),
-                            bodies[second].body.radius
-                        ))
-                    {
-                        bodies[first].shape.setFillColor(sf::Color::Red);
-                        bodies[second].shape.setFillColor(sf::Color::Red);
-                    }
-                }
-            }
-        }
-
-        if (selectedBody && *selectedBody < bodies.size())
-        {
-            bodies[*selectedBody].shape.setFillColor(sf::Color(255, 215, 0));
-        }
+        app::updateParticleAppearance(
+            bodies,
+            colorByMaterial,
+            colorByCharge,
+            bodyCollisionsEnabled,
+            selectedBody
+        );
 
         const auto isBuildingBody = [&](std::size_t index)
         {
-            return index < bodies.size() &&
-                bodies[index].groupId >= 60 && bodies[index].groupId <= 71;
+            return app::isBuildingBody(bodies, index);
         };
         const auto drawSpringConnections = [&](sf::RenderTarget& target,
                                                 unsigned char alpha = 255,
                                                 int buildingLayer = 0,
                                                 int buildingGroup = -1)
         {
-            for (const auto& spring : springs)
-            {
-                if (spring.first >= bodies.size() ||
-                    spring.second >= bodies.size())
-                {
-                    continue;
-                }
-                const bool buildingConnection =
-                    isBuildingBody(spring.first) ||
-                    isBuildingBody(spring.second);
-                if ((buildingLayer < 0 && buildingConnection) ||
-                    (buildingLayer > 0 && !buildingConnection))
-                {
-                    continue;
-                }
-                if (buildingLayer > 0 && buildingGroup >= 60)
-                {
-                    const int connectionGroup = isBuildingBody(spring.first)
-                        ? bodies[spring.first].groupId
-                        : bodies[spring.second].groupId;
-                    if (connectionGroup != buildingGroup)
-                    {
-                        continue;
-                    }
-                }
-                const sf::Vector2f start = bodies[spring.first].body.center();
-                const sf::Vector2f end = bodies[spring.second].body.center();
-                const sf::Vector2f difference = end - start;
-                const float length = std::sqrt(
-                    difference.x * difference.x + difference.y * difference.y
-                );
-                const float extension = length - spring.restLength;
-                sf::Color color = extension > 2.f
-                    ? sf::Color(255, 120, 100)
-                    : (extension < -2.f
-                        ? sf::Color(90, 180, 255)
-                        : sf::Color(210, 220, 235));
-                color.a = alpha;
-                drawLine(target, start, end, color);
-            }
-        };
-        const auto drawBuildingOccluders = [&](sf::RenderTarget& target,
-                                                int onlyGroup = -1)
-        {
-            for (int group = 60; group <= 71; ++group)
-            {
-                if (onlyGroup >= 60 && group != onlyGroup)
-                {
-                    continue;
-                }
-                std::vector<sf::Vector2f> points;
-                for (const auto& view : bodies)
-                {
-                    if (view.groupId == group)
-                    {
-                        points.push_back(view.body.center());
-                    }
-                }
-                if (points.size() < 3)
-                {
-                    continue;
-                }
-
-                // Trace the actual outer outline instead of covering the
-                // building with an oversized rectangular blank area.
-                std::sort(points.begin(), points.end(),
-                    [](const sf::Vector2f& first, const sf::Vector2f& second)
-                    {
-                        return first.x < second.x ||
-                            (first.x == second.x && first.y < second.y);
-                    });
-                const auto cross = [](const sf::Vector2f& origin,
-                                      const sf::Vector2f& first,
-                                      const sf::Vector2f& second)
-                {
-                    const sf::Vector2f a = first - origin;
-                    const sf::Vector2f b = second - origin;
-                    return a.x * b.y - a.y * b.x;
-                };
-                std::vector<sf::Vector2f> hull;
-                for (const sf::Vector2f point : points)
-                {
-                    while (hull.size() >= 2 &&
-                           cross(hull[hull.size() - 2], hull.back(), point) <= 0.f)
-                    {
-                        hull.pop_back();
-                    }
-                    hull.push_back(point);
-                }
-                const std::size_t lowerSize = hull.size();
-                for (auto iterator = points.rbegin() + 1;
-                     iterator != points.rend(); ++iterator)
-                {
-                    while (hull.size() > lowerSize &&
-                           cross(hull[hull.size() - 2], hull.back(), *iterator) <= 0.f)
-                    {
-                        hull.pop_back();
-                    }
-                    hull.push_back(*iterator);
-                }
-                if (hull.size() > 1)
-                {
-                    hull.pop_back();
-                }
-                sf::ConvexShape silhouette(hull.size());
-                for (std::size_t index = 0; index < hull.size(); ++index)
-                {
-                    silhouette.setPoint(index, hull[index]);
-                }
-                silhouette.setFillColor(sf::Color::Black);
-                target.draw(silhouette);
-            }
+            app::drawSpringConnections(
+                target, bodies, springs, alpha, buildingLayer, buildingGroup
+            );
         };
         const auto drawBuildingsBackToFront = [&](sf::RenderTarget& target)
         {
-            std::vector<std::pair<float, int>> buildingOrder;
-            for (int group = 60; group <= 71; ++group)
-            {
-                float groundDepth = -std::numeric_limits<float>::infinity();
-                bool found = false;
-                for (const auto& view : bodies)
-                {
-                    if (view.groupId == group)
-                    {
-                        groundDepth = std::max(
-                            groundDepth, view.body.center().y
-                        );
-                        found = true;
-                    }
-                }
-                if (found)
-                {
-                    buildingOrder.emplace_back(groundDepth, group);
-                }
-            }
-            std::sort(buildingOrder.begin(), buildingOrder.end());
-            for (const auto [depth, group] : buildingOrder)
-            {
-                static_cast<void>(depth);
-                drawBuildingOccluders(target, group);
-                drawSpringConnections(target, 255, 1, group);
-                for (const auto& view : bodies)
-                {
-                    if (view.groupId == group)
-                    {
-                        target.draw(view.shape);
-                    }
-                }
-            }
+            app::drawBuildingsBackToFront(target, bodies, springs);
         };
-
         const auto drawPointFieldMarkers = [&]()
         {
             for (std::size_t index = 0; index < pointFields.size(); ++index)
@@ -2997,13 +2813,7 @@ int main()
 
         drawSpringConnections(window, 255, -1);
 
-        for (std::size_t index = 0; index < bodies.size(); ++index)
-        {
-            if (!isBuildingBody(index))
-            {
-                window.draw(bodies[index].shape);
-            }
-        }
+        app::drawNonBuildingBodies(window, bodies);
         drawBuildingsBackToFront(window);
 
         if (showVelocityVectors)

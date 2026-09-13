@@ -109,7 +109,7 @@ folder. Press `C` before `F12` for a clean scene without control windows.
 
 ## Architecture
 
-The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, point-field forces, and mathematical-surface projection. A separate preset-construction library defines reproducible scenes. The SFML application owns visual shapes and synchronizes them from the physics state. This keeps simulation and preset logic testable without opening a window.
+The reusable `physics-core` library owns body state, integration, boundary response, collision mathematics, point-field forces, and mathematical-surface projection. Preset libraries define reproducible foundational and artistic scenes. A dedicated renderer owns particle appearance, spring lines, and depth-ordered building occlusion, while the SFML application coordinates simulation, controls, and display. These boundaries keep physics and scene construction testable without opening a window.
 
 ## Engineering notes
 
