@@ -97,13 +97,16 @@ or capture a clean scene after hiding controls with `C`.
 
 ```mermaid
 flowchart LR
-    UI[SFML + ImGui application] --> Core[physics-core]
-    UI --> Presets[preset libraries]
-    UI --> Renderer[scene renderer]
-    Presets --> Core
+    Main[main.cpp<br/>SFML + ImGui application] --> Core[physics-core]
+    Main --> Foundation[preset-construction]
+    Main --> Artistic[artistic-presets]
+    Main --> Renderer[app-rendering]
+    Foundation --> Core
+    Artistic --> Core
     Renderer --> Core
     Tests[10 test executables] --> Core
-    Tests --> Presets
+    Tests --> Foundation
+    Tests --> Artistic
     Benchmark[performance benchmark] --> Core
 
     Core --> Dynamics[body dynamics and collisions]
@@ -112,12 +115,8 @@ flowchart LR
     Core --> Surfaces[mathematical projections]
 ```
 
-- `physics-core` owns reusable simulation algorithms and state.
-- `preset-construction` and `artistic-presets` build deterministic scenes.
-- `app-rendering` owns particle appearance, spring drawing, and building occlusion.
-- `main.cpp` coordinates input, controls, simulation timing, presets, and display.
-
-This separation allows physics and scene construction to be tested without
+Keeping simulation, scene construction, and rendering separate makes the engine
+easier to understand and allows its physics and presets to be tested without
 opening a graphical window.
 
 ## Testing
