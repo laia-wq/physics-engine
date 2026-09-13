@@ -2,6 +2,18 @@
 
 This log records important decisions, evidence, problems, and lessons from development.
 
+## 2026-09-13 — Extract foundational preset construction
+
+- Added a dedicated preset-construction library for Classic, stress, head-on collision, zero-gravity, rain, and orbit scenes.
+- Replaced their repeated particle-building loops in `main.cpp` with one small adapter that turns preset definitions into live bodies.
+- Added automated checks for every foundational preset's body count and requested stress-scene size.
+- Added a restart/load check that mutates a running preset, regenerates it, and confirms its initial position and velocity return independently.
+- Reduced `main.cpp` from 4,677 to 4,592 lines.
+
+### Engineering significance
+
+Preset definitions no longer depend on the graphical application loop. This establishes the boundary needed to move the larger connected and artistic presets out incrementally without performing a risky all-at-once rewrite.
+
 ## 2026-09-12 — Extract mathematical surface geometry
 
 - Moved the equations and projection rules for the torus, heart, Mobius strip, sphere, wave, double well, and spacetime well into a dedicated mathematical-surface module.

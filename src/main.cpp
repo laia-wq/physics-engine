@@ -10,6 +10,7 @@
 #include "physics/MathematicalSurface.hpp"
 #include "physics/PointField.hpp"
 #include "physics/Spring.hpp"
+#include "presets/PresetConstruction.hpp"
 
 #include <algorithm>
 #include <array>
@@ -325,139 +326,53 @@ int main()
     std::vector<physics::Spring> springs;
     std::vector<physics::Spring> restartSprings;
 
-    const auto loadClassicScene = [&]()
+    const auto loadFoundationScene = [&](
+        presets::FoundationPreset preset,
+        std::size_t stressBodyCount = 0
+    )
     {
         bodies.clear();
         springs.clear();
         restartSprings.clear();
-        bodies.emplace_back(
-            5.f,
-            sf::Vector2f(100.f, 100.f),
-            sf::Vector2f(180.f, 0.f),
-            0.75f
-        );
-        bodies.emplace_back(
-            5.f,
-            sf::Vector2f(300.f, 80.f),
-            sf::Vector2f(-100.f, 0.f),
-            0.55f
-        );
-        bodies.emplace_back(
-            5.f,
-            sf::Vector2f(500.f, 50.f),
-            sf::Vector2f(70.f, 0.f),
-            0.9f
-        );
+        for (const auto& definition :
+             presets::buildFoundationPreset(preset, stressBodyCount))
+        {
+            bodies.emplace_back(
+                definition.radius,
+                definition.position,
+                definition.velocity,
+                definition.restitution
+            );
+        }
         restartBodies = bodies;
+    };
+
+    const auto loadClassicScene = [&]()
+    {
+        loadFoundationScene(presets::FoundationPreset::Classic);
+    };
+    const auto loadStressScene = [&](std::size_t bodyCount)
+    {
+        loadFoundationScene(presets::FoundationPreset::Stress, bodyCount);
+    };
+    const auto loadHeadOnScene = [&]()
+    {
+        loadFoundationScene(presets::FoundationPreset::HeadOn);
+    };
+    const auto loadZeroGravityScene = [&]()
+    {
+        loadFoundationScene(presets::FoundationPreset::ZeroGravity);
+    };
+    const auto loadRainScene = [&]()
+    {
+        loadFoundationScene(presets::FoundationPreset::Rain);
+    };
+    const auto loadOrbitScene = [&]()
+    {
+        loadFoundationScene(presets::FoundationPreset::Orbit);
     };
 
     loadClassicScene();
-
-    const auto loadStressScene = [&](std::size_t bodyCount)
-    {
-        bodies.clear();
-        springs.clear();
-        restartSprings.clear();
-        constexpr float radius = 5.f;
-        constexpr float spacing = 15.f;
-        constexpr std::size_t columns = 50;
-
-        for (std::size_t index = 0; index < bodyCount; ++index)
-        {
-            const float x = 20.f +
-                static_cast<float>(index % columns) * spacing;
-            const float y = 40.f +
-                static_cast<float>(index / columns) * spacing;
-            const float horizontalVelocity = index % 2 == 0 ? 35.f : -35.f;
-            bodies.emplace_back(
-                radius,
-                sf::Vector2f(x, y),
-                sf::Vector2f(horizontalVelocity, 0.f),
-                0.65f
-            );
-        }
-        restartBodies = bodies;
-    };
-
-    const auto loadHeadOnScene = [&]()
-    {
-        bodies.clear();
-        springs.clear();
-        restartSprings.clear();
-        bodies.emplace_back(
-            30.f, sf::Vector2f(180.f, 270.f),
-            sf::Vector2f(220.f, 0.f), 1.f
-        );
-        bodies.emplace_back(
-            30.f, sf::Vector2f(560.f, 270.f),
-            sf::Vector2f(-220.f, 0.f), 1.f
-        );
-        restartBodies = bodies;
-    };
-
-    const auto loadZeroGravityScene = [&]()
-    {
-        bodies.clear();
-        springs.clear();
-        restartSprings.clear();
-        for (std::size_t index = 0; index < 16; ++index)
-        {
-            const float x = 80.f + static_cast<float>(index % 4) * 180.f;
-            const float y = 70.f + static_cast<float>(index / 4) * 130.f;
-            const float vx = index % 2 == 0 ? 90.f : -90.f;
-            const float vy = index % 3 == 0 ? 70.f : -50.f;
-            bodies.emplace_back(
-                14.f + static_cast<float>(index % 3) * 4.f,
-                sf::Vector2f(x, y), sf::Vector2f(vx, vy), 0.95f
-            );
-        }
-        restartBodies = bodies;
-    };
-
-    const auto loadRainScene = [&]()
-    {
-        bodies.clear();
-        springs.clear();
-        restartSprings.clear();
-        for (std::size_t index = 0; index < 60; ++index)
-        {
-            const float x = 15.f + static_cast<float>(index % 20) * 39.f;
-            const float y = 20.f + static_cast<float>(index / 20) * 28.f;
-            bodies.emplace_back(
-                7.f, sf::Vector2f(x, y), sf::Vector2f(0.f, 0.f), 0.7f
-            );
-        }
-        restartBodies = bodies;
-    };
-
-    const auto loadOrbitScene = [&]()
-    {
-        bodies.clear();
-        springs.clear();
-        restartSprings.clear();
-        constexpr float PI = 3.14159265359f;
-        constexpr float fieldStrength = 8000000.f;
-        const sf::Vector2f fieldCenter(400.f, 300.f);
-
-        for (std::size_t index = 0; index < 120; ++index)
-        {
-            const float radiusFromCenter =
-                75.f + static_cast<float>(index % 6) * 42.f;
-            const float angle = 2.f * PI * static_cast<float>(index) / 120.f;
-            const sf::Vector2f radial(std::cos(angle), std::sin(angle));
-            const float bodyRadius = 4.f + static_cast<float>(index % 4);
-            const sf::Vector2f center = fieldCenter + radial * radiusFromCenter;
-            const float orbitalSpeed = std::sqrt(fieldStrength / radiusFromCenter);
-            const sf::Vector2f tangent(-radial.y, radial.x);
-            bodies.emplace_back(
-                bodyRadius,
-                center - sf::Vector2f(bodyRadius, bodyRadius),
-                tangent * orbitalSpeed,
-                0.9f
-            );
-        }
-        restartBodies = bodies;
-    };
 
     sf::Clock clock;
     float accumulator = 0.f;

@@ -56,9 +56,15 @@ enable_project_warnings(physics-core)
 add_executable(physics-engine src/main.cpp)
 enable_project_warnings(physics-engine)
 
+add_library(preset-construction src/PresetConstruction.cpp)
+target_include_directories(preset-construction PUBLIC include)
+target_link_libraries(preset-construction PUBLIC SFML::System)
+enable_project_warnings(preset-construction)
+
 target_link_libraries(
     physics-engine
     physics-core
+    preset-construction
     ImGui-SFML::ImGui-SFML
     SFML::Graphics
     SFML::Window
@@ -97,6 +103,11 @@ if(BUILD_TESTING)
     target_link_libraries(point-field-tests PRIVATE physics-core)
     enable_project_warnings(point-field-tests)
     add_test(NAME interactive-point-fields COMMAND point-field-tests)
+
+    add_executable(preset-construction-tests tests/PresetConstructionTests.cpp)
+    target_link_libraries(preset-construction-tests PRIVATE preset-construction)
+    enable_project_warnings(preset-construction-tests)
+    add_test(NAME preset-restart-load COMMAND preset-construction-tests)
 
     add_executable(distance-constraint-tests tests/DistanceConstraintTests.cpp)
     target_link_libraries(distance-constraint-tests PRIVATE physics-core)
