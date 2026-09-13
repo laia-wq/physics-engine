@@ -43,11 +43,11 @@ See [the preset guide](docs/presets.md) for what every scene demonstrates.
 
 ### Visual showcase
 
-| Rolling wireframe city | Interactive laboratory |
+| Wireframe city | Interactive laboratory |
 |---|---|
 | ![Rolling wireframe terrain with depth-ordered buildings](media/rolling-terrain-city.png) | ![Physics controls and organized preset gallery](media/interactive-controls.png) |
 
-| Generative Canvas | Particle-mesh apple |
+| Interactive vector field | Particle-mesh apple |
 |---|---|
 | ![Particles tracing a vortex in Canvas mode](media/canvas-vortex.png) | ![Connected particles forming a three-dimensional apple](media/particle-apple.png) |
 
