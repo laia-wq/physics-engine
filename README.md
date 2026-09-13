@@ -11,11 +11,6 @@ The project deliberately uses SFML only for windows and drawing. Motion,
 collisions, spatial partitioning, fields, spring forces, constraint solving,
 materials, and scene construction are implemented in this repository.
 
-![Rolling wireframe terrain with depth-ordered buildings](media/rolling-terrain-city.png)
-
-*A projected particle lattice becomes rolling terrain, with depth-ordered
-wireframe buildings placed across its surface.*
-
 ## Highlights
 
 - Fixed 120 Hz simulation independent of rendering speed
@@ -48,20 +43,21 @@ See [the preset guide](docs/presets.md) for what every scene demonstrates.
 
 ### Visual showcase
 
+| Rolling wireframe city | Interactive laboratory |
+|---|---|
+| ![Rolling wireframe terrain with depth-ordered buildings](media/rolling-terrain-city.png) | ![Physics controls and organized preset gallery](media/interactive-controls.png) |
+
 | Generative Canvas | Particle-mesh apple |
 |---|---|
 | ![Particles tracing a vortex in Canvas mode](media/canvas-vortex.png) | ![Connected particles forming a three-dimensional apple](media/particle-apple.png) |
-| Motion trails expose the flow created by an interactive vortex. | Nonlinear spacing and connections create apparent volume in a 2D simulation. |
 
 | Windblown tree | Mathematical torus |
 |---|---|
 | ![A deformable wireframe tree](media/windblown-tree.png) | ![A projected wireframe torus](media/wireframe-torus.png) |
-| Connected materials let the trunk, branches, and foliage respond differently. | A parametric 3D surface is projected into the engine's 2D particle space. |
 
 | Adjustable wave surface | Strain-based lattice tearing |
 |---|---|
 | ![A projected mathematical wave surface](media/wave-surface.png) | ![A connected particle lattice tearing under force](media/tearing-lattice.png) |
-| A tunable mathematical height field becomes a projected triangular mesh. | Overstretched connections break as force pulls a soft lattice apart. |
 
 ## Build from source
 
