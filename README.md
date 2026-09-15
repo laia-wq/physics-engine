@@ -1,4 +1,4 @@
-# Particle Physics Laboratory
+# Particle Physics Engine
 
 [![Build and test](https://github.com/laia-wq/physics-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/laia-wq/physics-engine/actions/workflows/ci.yml)
 
@@ -205,4 +205,4 @@ problems, performance evidence, and the reasoning behind major revisions.
 Feature development and macOS packaging are complete for the first portfolio
 release. The documented release candidate has passed the automated test suite,
 benchmark validation, application-signature verification, and ZIP integrity
-check. It is ready to publish as version 1.0.0.
+check. There are no current plans to update the engine.
